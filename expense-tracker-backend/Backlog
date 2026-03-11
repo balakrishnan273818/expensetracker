@@ -1,0 +1,240 @@
+# CONTEXT PROMPT — Expense Tracker Backend (Resume Point)
+
+Use this prompt at the start of a new conversation so the assistant resumes exactly where development stopped.
+
+---
+
+## Project
+
+Personal **Expense Intelligence Web App**
+
+Goal:
+
+* Automate expense tracking from **bank statements**
+* Provide **budget awareness and safe-to-spend insights**
+* Maintain **security (no direct bank login)**
+
+Primary data source:
+
+* Bank statement imports
+
+---
+
+## Current Development Stage
+
+Backend development in progress.
+
+Completed:
+
+* PostgreSQL installed locally
+* Database created: `expense_tracker`
+* `transactions` table created
+* Python environment ready
+* DB connectivity verified
+* Test transaction insertion working
+* XLS/XLSX bank statement import working
+* Multi-bank parser architecture started
+
+Current script parses:
+
+* **IDFC FIRST Bank statements (.xlsx)**
+* **Axis Bank statements (.xls)**
+
+Architecture:
+
+```
+Bank File
+   ↓
+Bank-specific Parser
+   ↓
+Normalized records
+   ↓
+Insert into PostgreSQL
+```
+
+---
+
+## Technology Stack
+
+Backend
+
+* Python
+
+Database
+
+* PostgreSQL (local)
+
+Libraries
+
+* pandas
+* openpyxl
+* xlrd
+* psycopg2
+
+Future backend framework
+
+* FastAPI
+
+Hosting target
+
+* Render
+
+---
+
+## Database
+
+Database name:
+
+```
+expense_tracker
+```
+
+Table:
+
+```
+transactions
+```
+
+Columns:
+
+```
+id
+date
+amount
+main_category
+sub_category
+payment_method
+account
+description
+source
+created_at
+```
+
+---
+
+## Bank Accounts (Frozen)
+
+```
+AxisSalary
+HDFCSavings
+IDFCExpense
+Pluxee
+CreditCard
+WalletReserve
+```
+
+---
+
+## Current Script Design
+
+Functions implemented:
+
+```
+detect_engine(file)
+detect_bank(file)
+
+parse_idfc(file)
+parse_axis(file)
+
+insert_records(records)
+
+main()
+```
+
+Each parser returns standardized records:
+
+```
+date
+description
+amount
+account
+```
+
+---
+
+## Pending Improvements
+
+1. Duplicate prevention
+2. Internal transfer detection
+3. HDFC statement parser
+4. Expense categorization logic
+5. CSV/XLSX upload API
+6. FastAPI backend service
+
+---
+
+## Expense Categories (Frozen)
+
+Living
+
+* Groceries
+* Food
+* Medical
+
+Bills
+
+* Electricity
+* Water
+* Internet
+* Phone
+* Gas
+* Maintenance
+* Rent
+
+Travel
+
+* Cab
+* Auto
+* Metro
+* Bus
+* Train
+* Fuel
+
+Family
+
+* Childcare
+* Education
+* Healthcare
+* Allowances
+
+Financial
+
+* Insurance
+* Investment
+
+Lifestyle
+
+* Shopping
+* Entertainment
+* Subscriptions
+
+Other
+
+* Miscellaneous
+
+---
+
+## Payment Methods (Frozen)
+
+```
+GPay
+PhonePe
+Cash
+CreditCard
+DebitCard
+BankTransfer
+Pluxee
+Other
+```
+
+---
+
+## Next Task (where work stopped)
+
+Improve ingestion pipeline:
+
+* Prevent duplicate transactions
+* Detect **internal transfers between own accounts**
+* Ensure transfers are **not counted as expenses**
+
+Continue development from this point.
