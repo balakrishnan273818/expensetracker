@@ -1,11 +1,18 @@
 import os
+import warnings
+# Suppress the specific openpyxl style warning
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 import importlib
-import psycopg2
 from tqdm import tqdm
+from engine_context import EngineContext
+from datetime import datetime
 
-from merchant_extractor import extract_merchant
-from db import lookup_rule, learn_rule
-from ai_categorizer import ai_categorize
+from repositories.transaction_repo import insert_transaction
+from repositories.merchant_rule_repo import load_rules, load_merchant_patterns
+from services.categorization_service import categorize_transaction
+from repositories.merchant_rule_repo import load_aliases
+from repositories.merchant_rule_repo import load_family_alias
+from services.categorization_service import derive_payment_method
 
 BASE_FOLDER = "statements"
 
@@ -15,145 +22,46 @@ PARSER_MAP = {
     "idfc": "parsers.idfc_parser"
 }
 
-def insert_records_old(records):
+def normalize_date(date_str):
 
-    conn = psycopg2.connect(
-        dbname="expense_tracker",
-        user="postgres",
-        password="Bull@1895",
-        host="localhost"
-    )
+    formats = [
+        "%d-%m-%Y",   # Axis
+        "%d/%m/%y",   # HDFC
+        "%d-%b-%Y"    # IDFC
+    ]
 
-    cur = conn.cursor()
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
 
-    for r in tqdm(records, total=len(records)):
+    raise ValueError(f"Unknown date format: {date_str}")
 
-        # extract merchant
-        merchant = extract_merchant(r["description"])
+def process_records(records, ctx):
 
-        # check learned rules
-        category, sub_category = lookup_rule(merchant)
+    for r in tqdm(records, colour="green"):
 
-        # AI fallback
-        if not category:
-            category = ai_categorize(merchant)
-
-        cur.execute("""
-        INSERT INTO transactions
-        (date, amount, description, account, source, merchant, main_category)
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT DO NOTHING
-        """,
-        (
-            r["date"],
-            r["amount"],
+        #print(r)
+        merchant, category, sub_category = categorize_transaction(
             r["description"],
-            r["account"],
-            "bank_import",
-            merchant,
-            category
-        ))
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def insert_records_nolearn(records):
-
-    conn = psycopg2.connect(
-        dbname="expense_tracker",
-        user="postgres",
-        password="Bull@1895",
-        host="localhost"
-    )
-
-    cur = conn.cursor()
-
-    for r in tqdm(records, total=len(records)):
-
-        description = r["description"]
-
-        # merchant only for storing
-        merchant = extract_merchant(description)
-
-        # rule lookup using FULL description
-        category, sub_category = lookup_rule(description)
-
-        # LLM fallback (send full description)
-        if not category:
-            category, sub_category = ai_categorize(description)
-
-        cur.execute("""
-        INSERT INTO transactions
-        (date, amount, description, account, source, merchant, main_category, sub_category)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT DO NOTHING
-        """,
-        (
             r["date"],
-            r["amount"],
-            description,
-            r["account"],
-            "bank_import",
+            ctx
+        )
+
+        insert_transaction((
+            r["date"],
+            float(r["amount"]),
+            r["description"],
+            r["bank"],
+            derive_payment_method(r["description"]),
             merchant,
             category,
             sub_category
         ))
 
-    conn.commit()
-    cur.close()
-    conn.close()
 
-def insert_records(records):
-
-    conn = psycopg2.connect(
-        dbname="expense_tracker",
-        user="postgres",
-        password="Bull@1895",
-        host="localhost"
-    )
-
-    cur = conn.cursor()
-
-    for r in tqdm(records, total=len(records)):
-
-        description = r["description"]
-        txn_time = r["date"]   # send this to LLM
-
-        merchant = extract_merchant(description)
-
-        category, sub_category = lookup_rule(description)
-
-        if not category:
-
-            category, sub_category = ai_categorize(description, txn_time)
-
-            if merchant and len(merchant) > 3:
-                learn_rule(merchant, category, sub_category)
-
-        cur.execute("""
-        INSERT INTO transactions
-        (date, amount, description, account, source, merchant, main_category, sub_category)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT DO NOTHING
-        """,
-        (
-            r["date"],
-            r["amount"],
-            description,
-            r["account"],
-            "bank_import",
-            merchant,
-            category,
-            sub_category
-        ))
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-def process_bank(bank_folder, module_name):
+def process_bank(bank_folder, module_name, ctx):
 
     parser = importlib.import_module(module_name)
 
@@ -167,14 +75,21 @@ def process_bank(bank_folder, module_name):
 
             records = parser.parse(full_path)
 
-            insert_records(records)
+            process_records(records, ctx)
 
 
 def main():
 
-    for bank, module in PARSER_MAP.items():
+    # Load once
+    rules = load_rules()
+    patterns = load_merchant_patterns()
+    aliases = load_aliases()
+    family_alias = load_family_alias()
 
-        process_bank(bank, module)
+    ctx = EngineContext(rules, patterns, aliases, family_alias)
+
+    for bank, module in PARSER_MAP.items():
+        process_bank(bank, module, ctx)
 
 
 if __name__ == "__main__":

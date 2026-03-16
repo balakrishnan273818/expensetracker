@@ -1,73 +1,92 @@
-import { Link, NavLink } from "react-router-dom"
-import ThemeToggle from "../components/ThemeToggle"
+import { NavLink } from "react-router-dom";
+import ThemeToggle from "../components/ThemeToggle";
+
 import {
-    Wallet,
-    Calendar,
     LayoutDashboard,
-    CalendarCheck,
+    CalendarDays,
+    Table,
     BarChart3,
-    PiggyBank,
-    Receipt
-} from "lucide-react"
+    Wallet,
+    Receipt,
+    Settings,
+} from "lucide-react";
 
 export default function Navbar() {
-    const navItemClass = ({ isActive }) =>
-        `flex items-center gap-3 px-4 py-2 rounded-lg transition
-        ${isActive
-            ? "bg-blue-50 text-blue-600 font-semibold border-l-4 border-blue-600"
-            : "text-gray-700 hover:bg-gray-100"}`
+
+    const base =
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all";
+
+    const inactive =
+        "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800";
+
+    const active =
+        "bg-blue-600 text-white shadow-sm";
+
+    function navClass({ isActive }) {
+        return `${base} ${isActive ? active : inactive}`;
+    }
 
     return (
-        <div className="w-64 h-screen bg-white shadow-md flex flex-col">
 
-            {/* Logo */}
-            <Link
-                to="/calendar"
-                className="flex items-center gap-2 text-xl font-bold px-6 py-5 border-b"
-            >
-                <Wallet size={24} />
-                Expense Tracker
-            </Link>
+        <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-screen flex flex-col">
+
+            {/* Header */}
+
+            <div className="px-5 py-5 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
+
+                <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
+
+                    <Wallet size={20} className="text-blue-600" />
+
+                    Expense Tracker
+
+                </div>
+
+                <ThemeToggle />
+
+            </div>
 
             {/* Navigation */}
-            <nav className="flex flex-col gap-2 p-4">
 
-                <NavLink to="/calendar" className={navItemClass}>
-                    <Calendar size={18} />
+            <nav className="flex-1 px-3 py-4 space-y-1">
+
+                <NavLink to="/calendar" className={navClass}>
+                    <CalendarDays size={18} />
                     Calendar
                 </NavLink>
 
-                <NavLink to="/dashboard" className={navItemClass}>
+                <NavLink to="/dashboard" className={navClass}>
                     <LayoutDashboard size={18} />
                     Dashboard
                 </NavLink>
 
-                <NavLink to="/daily-summary" className={navItemClass}>
-                    <CalendarCheck size={18} />
+                <NavLink to="/daily-summary" className={navClass}>
+                    <Table size={18} />
                     Daily Summary
                 </NavLink>
 
-                <NavLink to="/overall-summary" className={navItemClass}>
+                <NavLink to="/overall-summary" className={navClass}>
                     <BarChart3 size={18} />
                     Overall Summary
                 </NavLink>
 
-                <NavLink to="/budget" className={navItemClass}>
-                    <PiggyBank size={18} />
+                <NavLink to="/budget" className={navClass}>
+                    <Wallet size={18} />
                     Budget
                 </NavLink>
 
-                <NavLink to="/transactions" className={navItemClass}>
+                <NavLink to="/transactions" className={navClass}>
                     <Receipt size={18} />
                     Transactions
                 </NavLink>
 
+                <NavLink to="/settings" className={navClass}>
+                    <Settings size={18} />
+                    Settings
+                </NavLink>
+
             </nav>
 
-            <div className="mt-auto p-4">
-                <ThemeToggle />
-            </div>
-
-        </div>
-    )
+        </aside>
+    );
 }

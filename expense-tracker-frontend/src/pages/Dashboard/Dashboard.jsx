@@ -1,177 +1,150 @@
-import { useState } from "react"
-import StatCard from "../../components/cards/StatCard"
-import { Wallet, TrendingDown, PiggyBank, Landmark } from "lucide-react"
-import { formatCurrency } from "../../utils/currency"
-import ChartCard from "../../components/cards/ChartCard"
-import ExpensePieChart from "../../components/charts/ExpensePieChart"
-import MonthlyFlowChart from "../../components/charts/MonthlyFlowChart"
-import TransactionTable from "../../components/tables/TransactionTable"
-import CategoryBreakdownCard from "../../components/cards/CategoryBreakdownCard"
+import { useState } from "react";
 
-const transactions = [
-    {
-        description: "Swiggy Order",
-        date: "12 Mar",
-        amount: 540,
-        type: "expense",
-        category: "food"
-    },
-    {
-        description: "Salary Credit",
-        date: "10 Mar",
-        amount: 120000,
-        type: "income",
-        category: "other"
-    },
-    {
-        description: "Amazon Purchase",
-        date: "8 Mar",
-        amount: 3200,
-        type: "expense",
-        category: "shopping"
-    },
-    {
-        description: "Electricity Bill",
-        date: "21 Mar",
-        amount: 1000,
-        type: "expense",
-        category: "Bills"
-    },
-    {
-        description: "Flight Ticket",
-        date: "5 Mar",
-        amount: 8500,
-        type: "expense",
-        category: "travel"
-    },
-    {
-        description: "Rent",
-        date: "1 Mar",
-        amount: 19000,
-        type: "expense",
-        category: "Bills"
-    },
-    {
-        description: "Interest",
-        date: "3 Mar",
-        amount: 152,
-        type: "income",
-        category: "Bond interest"
-    }
-];
+import StatCard from "../../components/cards/StatCard";
+import ChartCard from "../../components/cards/ChartCard";
+import TransactionTable from "../../components/tables/TransactionTable";
+import TransactionDrawer from "../../components/drawer/TransactionDrawer";
+import CategoryBreakdownCard from "../../components/cards/CategoryBreakdownCard";
 
-const categorySpending = [
-    { category: "food", amount: 12000 },
-    { category: "shopping", amount: 8500 },
-    { category: "travel", amount: 6200 },
-    { category: "bills", amount: 4800 }
-]
+import ExpensePieChart from "../../components/charts/ExpensePieChart";
+import MonthlyFlowChart from "../../components/charts/MonthlyFlowChart";
+
+import { Wallet, TrendingDown, PiggyBank, Landmark } from "lucide-react";
+import { formatCurrency } from "../../utils/currency";
+
+import useTransactions from "../../hooks/useTransactions";
+import PageHeader from "../../layout/PageHeader";
 
 
 export default function Dashboard() {
 
-    const [dateRange, setDateRange] = useState("this_month")
+    const { transactions } = useTransactions();
+
+    const [selectedTx, setSelectedTx] = useState(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+
+    const income = transactions
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    const expenses = transactions
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    const investments = transactions
+        .filter((t) => t.type === "investment")
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    const balance = income - expenses - investments;
+
+    const categoryMap = {};
+
+    transactions
+        .filter((t) => t.type === "expense")
+        .forEach((tx) => {
+            if (!categoryMap[tx.category]) categoryMap[tx.category] = 0;
+            categoryMap[tx.category] += Math.abs(tx.amount);
+        });
+
+    const categorySpending = Object.entries(categoryMap).map(([category, amount]) => ({
+        category,
+        amount
+    }));
+
+    const expensePieData = categorySpending.map((c) => ({
+        name: c.category,
+        value: c.amount
+    }));
+
+    const monthlyFlow = {};
+
+    transactions.forEach((tx) => {
+        const date = new Date(tx.date);
+        const month = date.toLocaleString("default", { month: "short" });
+
+        if (!monthlyFlow[month]) {
+            monthlyFlow[month] = { month, income: 0, expense: 0 };
+        }
+
+        if (tx.type === "income") monthlyFlow[month].income += tx.amount;
+        if (tx.type === "expense") monthlyFlow[month].expense += Math.abs(tx.amount);
+    });
+
+    const monthlyFlowData = Object.values(monthlyFlow);
 
     return (
         <div className="space-y-8 w-full">
 
-            {/* Header + Date Filter */}
-            <div className="flex items-center justify-between">
+            {/*<h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">*/}
+            {/*    Dashboard*/}
+            {/*</h1>*/}
 
-                <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <PageHeader
+                title="Dashboard"
+                subtitle="Overview of your financial activity"
+            />
 
-                <select
-                    value={dateRange}
-                    onChange={(e) => setDateRange(e.target.value)}
-                    className="border rounded-lg px-3 py-2 text-sm bg-white"
-                >
-                    <option value="this_month">This Month</option>
-                    <option value="last_month">Last Month</option>
-                    <option value="3_months">Last 3 Months</option>
-                    <option value="6_months">Last 6 Months</option>
-                    <option value="1_year">Last Year</option>
-                </select>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <StatCard
+                    title="Total Income"
+                    value={formatCurrency(income)}
+                    icon={Landmark}
+                    positive
+                />
+
+                <StatCard
+                    title="Total Expenses"
+                    value={formatCurrency(expenses)}
+                    icon={TrendingDown}
+                    positive={false}
+                />
+
+                <StatCard
+                    title="Investments"
+                    value={formatCurrency(investments)}
+                    icon={PiggyBank}
+                />
+
+                <StatCard
+                    title="Balance"
+                    value={formatCurrency(balance)}
+                    icon={Wallet}
+                />
 
             </div>
 
-            {/* Overview Section */}
-            <div>
-                <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                    Overview
-                </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-                    <StatCard
-                        title="Total Income"
-                        value={formatCurrency(120000)}
-                        change="+8% this month"
-                        icon={Landmark}
-                        positive={true}
-                    />
-
-                    <StatCard
-                        title="Total Expenses"
-                        value={formatCurrency(70000)}
-                        change="-5% this month"
-                        icon={TrendingDown}
-                        positive={false}
-                    />
-
-                    <StatCard
-                        title="Investments"
-                        value={formatCurrency(25000)}
-                        icon={PiggyBank}
-                    />
-
-                    <StatCard
-                        title="Balance"
-                        value={formatCurrency(25000)}
-                        icon={Wallet}
-                    />
-
-                </div>
-            </div>
-
-            {/* Analytics Section */}
-            <div>
-
-                <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                    Analytics
-                </h2>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    <div className="lg:col-span-2">
-                        <ChartCard title="Monthly Cash Flow">
-                            <MonthlyFlowChart />
-                        </ChartCard>
-                    </div>
-
-                    <CategoryBreakdownCard data={categorySpending} />
-
-                </div>
-
-                <div className="mt-6">
-                    <ChartCard title="Expense Distribution">
-                        <ExpensePieChart />
+                <div className="lg:col-span-2">
+                    <ChartCard title="Monthly Cash Flow">
+                        <MonthlyFlowChart data={monthlyFlowData} />
                     </ChartCard>
                 </div>
 
-            </div>
-
-            {/* Transactions Section */}
-            <div>
-
-                <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                    Recent Activity
-                </h2>
-
-                <TransactionTable transactions={transactions} />
+                <CategoryBreakdownCard data={categorySpending} />
 
             </div>
+
+            <ChartCard title="Expense Distribution">
+                <ExpensePieChart data={expensePieData} />
+            </ChartCard>
+
+            <TransactionTable
+                transactions={transactions.slice(0, 10)}
+                onSelect={(tx) => {
+                    setSelectedTx(tx);
+                    setDrawerOpen(true);
+                }}
+            />
+
+            <TransactionDrawer
+                open={drawerOpen}
+                transaction={selectedTx}
+                onClose={() => setDrawerOpen(false)}
+            />
 
         </div>
-    )
+    );
 }
-

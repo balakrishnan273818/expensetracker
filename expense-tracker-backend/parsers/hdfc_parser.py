@@ -1,28 +1,24 @@
 import pandas as pd
 from tqdm import tqdm
-ACCOUNT = "hdfc"
+
+ACCOUNT = "HDFC"
+
 
 def parse(file_path):
-    print("hdfc parsing started")
+
+    tqdm.write("HDFC parsing started")
+
     raw = pd.read_excel(file_path, header=None, engine="xlrd")
 
-    header_row = raw[raw.apply(lambda r: r.astype(str).str.contains("Withdrawal Amt").any(), axis=1)].index[0]
+    header_row = raw[
+        raw.apply(lambda r: r.astype(str).str.contains("Withdrawal Amt").any(), axis=1)
+    ].index[0]
 
     df = pd.read_excel(file_path, header=header_row, engine="xlrd")
 
-    df.columns = df.columns.str.replace("*","", regex=False).str.strip()
+    df.columns = df.columns.str.replace("*", "", regex=False).str.strip()
 
-    # convert date once
-    '''
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
-
-    # keep only valid transaction rows
-    df = df[df["Date"].notna()]
-    #df = df[(df[withdraw_col].notna()) | (df[deposit_col].notna())]
-    df = df[(pd.to_numeric(df[withdraw_col], errors="coerce").notna()) |
-            (pd.to_numeric(df[deposit_col], errors="coerce").notna())]
-    '''
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True, format='mixed')
 
     withdraw_col = "Withdrawal Amt."
     deposit_col = "Deposit Amt."
@@ -36,21 +32,20 @@ def parse(file_path):
 
     records = []
 
-    for _, r in tqdm(df.iterrows(), total=len(df)):
+    for _, r in tqdm(df.iterrows(), total=len(df), colour="cyan"):
 
-        debit = pd.to_numeric(r[withdraw_col], errors="coerce")
-        credit = pd.to_numeric(r[deposit_col], errors="coerce")
-
-        debit = 0 if pd.isna(debit) else debit
-        credit = 0 if pd.isna(credit) else credit
+        debit = 0 if pd.isna(r[withdraw_col]) else r[withdraw_col]
+        credit = 0 if pd.isna(r[deposit_col]) else r[deposit_col]
 
         amount = credit if credit else -debit
 
         records.append({
-            "date": r["Date"].date(),
-            "description": r["Narration"],
+            "date": r["Date"].strftime("%Y-%m-%d"),
+            "description": str(r["Narration"]).strip(),
             "amount": amount,
-            "account": ACCOUNT
+            "bank": ACCOUNT
         })
-    print("Hdfc data ingested")
+
+    tqdm.write("HDFC data ingested")
+
     return records

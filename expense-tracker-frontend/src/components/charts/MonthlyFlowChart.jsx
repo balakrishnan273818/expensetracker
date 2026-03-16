@@ -1,25 +1,55 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+    CartesianGrid
+} from "recharts";
 
-const data = [
-    { month: "Jan", income: 100000, expense: 70000 },
-    { month: "Feb", income: 110000, expense: 75000 },
-    { month: "Mar", income: 120000, expense: 80000 },
-    { month: "Apr", income: 90000, expense: 60000 }
-]
-
-export default function MonthlyFlowChart() {
+export default function MonthlyFlowChart({ data = [] }) {
     return (
-        <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={data}>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 h-[350px]">
 
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
+            <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+                Monthly Cash Flow
+            </h2>
 
-                <Bar dataKey="income" fill="#22c55e" />
-                <Bar dataKey="expense" fill="#ef4444" />
+            <ResponsiveContainer width="100%" height="85%">
+                <BarChart data={data}>
 
-            </BarChart>
-        </ResponsiveContainer>
-    )
+                    <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" opacity={0.2} />
+
+                    <XAxis
+                        dataKey="month"
+                        tick={{ fill: "#9ca3af" }}
+                        axisLine={false}
+                        tickLine={false}
+                    />
+
+                    <YAxis
+                        tick={{ fill: "#9ca3af" }}
+                        axisLine={false}
+                        tickLine={false}
+                    />
+
+                    <Tooltip
+                        formatter={(value) => `₹${value}`}
+                        contentStyle={{
+                            backgroundColor: "var(--tooltip-bg)",
+                            border: "none",
+                            borderRadius: "8px",
+                            color: "var(--tooltip-text)"
+                        }}
+                    />
+
+                    <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+
+                </BarChart>
+            </ResponsiveContainer>
+
+        </div>
+    );
 }

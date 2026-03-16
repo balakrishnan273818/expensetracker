@@ -1,4 +1,18 @@
-INSERT INTO merchant_rules (merchant, category, sub_category) VALUES
+INSERT INTO merchant_rules (merchant, main_category, sub_category) VALUES
+
+--Family
+('DIVYA P','Family','Allowances'),
+('MR U SURESH KUMAR','Family','Allowances'),
+
+--Self Transfer
+('BALAKRISHNAN GANESAN','Financial','SelfTransfer'),
+('BALAKRISH','Financial','SelfTransfer'),
+
+--Rent
+('ALAMELU K','Bills','Rent'),
+
+--Subscriptions
+('APPLE MED','Bills','Subscriptions'),'
 
 -- Travel
 ('REDBUS','Travel','Bus'),
@@ -37,6 +51,10 @@ INSERT INTO merchant_rules (merchant, category, sub_category) VALUES
 ('ADDMONEY','Financial','Money Transfer'),
 ('INTEREST CREDIT','Financial','Income'),
 ('UNIFIED','Financial','other'),
+('CASH','Financial','cash')
+
+-- Investments
+('INDIAN CL','Investments','Mutual Funds')
 
 -- Other / Miscellaneous
 ('HELMO','Other','Miscellaneous'),
@@ -70,5 +88,5 @@ INSERT INTO merchant_rules (merchant, category, sub_category) VALUES
 
 ON CONFLICT (merchant)
 DO UPDATE SET
-category = EXCLUDED.category,
+main_category = EXCLUDED.main_category,
 sub_category = EXCLUDED.sub_category;

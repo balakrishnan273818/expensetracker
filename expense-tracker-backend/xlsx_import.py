@@ -1,10 +1,19 @@
 import pandas as pd
-import psycopg2
 import os
+
+from db import DB_POOL
+from services.categorization_service import categorize_transaction
+from repositories.merchant_rule_repo import load_rules, load_merchant_patterns
+
+
+RULES = load_rules()
+PATTERNS = load_merchant_patterns()
 
 
 def detect_engine(file):
+
     ext = os.path.splitext(file)[1]
+
     if ext == ".xlsx":
         return "openpyxl"
     elif ext == ".xls":
@@ -29,10 +38,20 @@ def parse_idfc(file, engine):
 
         amount = r["Debit"] if pd.notna(r["Debit"]) else r["Credit"]
 
+        desc = str(r["Particulars"])
+        txn_time = str(r["Transaction Date"])
+
+        merchant, category, sub_category = categorize_transaction(
+            desc, txn_time, RULES, PATTERNS
+        )
+
         records.append({
             "date": r["Transaction Date"],
-            "description": r["Particulars"],
+            "description": desc,
             "amount": amount,
+            "merchant": merchant,
+            "category": category,
+            "sub_category": sub_category,
             "account": "IDFCExpense"
         })
 
@@ -57,10 +76,20 @@ def parse_axis(file, engine):
 
         amount = r["Debit"] if pd.notna(r["Debit"]) else r["Credit"]
 
+        desc = str(r["Description"])
+        txn_time = str(r["Tran Date"])
+
+        merchant, category, sub_category = categorize_transaction(
+            desc, txn_time, RULES, PATTERNS
+        )
+
         records.append({
             "date": r["Tran Date"],
-            "description": r["Description"],
+            "description": desc,
             "amount": amount,
+            "merchant": merchant,
+            "category": category,
+            "sub_category": sub_category,
             "account": "AxisSalary"
         })
 
@@ -73,6 +102,7 @@ def detect_bank(file):
 
     if "IDFC" in name:
         return "IDFC"
+
     if "AXIS" in name:
         return "AXIS"
 
@@ -81,34 +111,31 @@ def detect_bank(file):
 
 def insert_records(records):
 
-    conn = psycopg2.connect(
-        host="localhost",
-        database="expense_tracker",
-        user="postgres",
-        password="Bull@1895",
-        port="5432"
-    )
-
+    conn = DB_POOL.getconn()
     cur = conn.cursor()
 
     for r in records:
 
         cur.execute("""
         INSERT INTO transactions
-        (date, amount, description, account, source)
-        VALUES (%s,%s,%s,%s,%s)
+        (date, amount, description, merchant, category, sub_category, account, source)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT DO NOTHING
         """, (
             r["date"],
             r["amount"],
             r["description"],
+            r["merchant"],
+            r["category"],
+            r["sub_category"],
             r["account"],
             "bank_import"
         ))
 
     conn.commit()
+
     cur.close()
-    conn.close()
+    DB_POOL.putconn(conn)
 
 
 def main():

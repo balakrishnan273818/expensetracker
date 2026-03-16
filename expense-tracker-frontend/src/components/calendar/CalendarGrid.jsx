@@ -1,106 +1,101 @@
-import { formatCurrency } from "../../utils/currency"
+import { formatCurrency } from "../../utils/currency";
 
 function getDaysInMonth(year, month) {
-    return new Date(year, month + 1, 0).getDate()
+    return new Date(year, month + 1, 0).getDate();
 }
 
 function getStartDay(year, month) {
-    return new Date(year, month, 1).getDay()
+    return new Date(year, month, 1).getDay();
 }
 
-export default function CalendarGrid({ year, month, transactions, schedules }) {
+export default function CalendarGrid({ year, month, transactions = [], schedules = [] }) {
+    const daysInMonth = getDaysInMonth(year, month);
+    const startDay = getStartDay(year, month);
 
-    const daysInMonth = getDaysInMonth(year, month)
-    const startDay = getStartDay(year, month)
-
-    const days = []
+    const days = [];
 
     for (let i = 0; i < startDay; i++) {
-        days.push(null)
+        days.push(null);
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
-        days.push(d)
+        days.push(d);
     }
 
-    const dailyTotals = {}
-    const scheduleTotals = {}
+    const dailyTotals = {};
+    const scheduleTotals = {};
 
     transactions.forEach((tx) => {
-        const date = new Date(tx.date)
+        const date = new Date(tx.date);
 
         if (date.getMonth() === month && date.getFullYear() === year) {
-
-            const day = date.getDate()
+            const day = date.getDate();
 
             if (!dailyTotals[day]) {
                 dailyTotals[day] = {
                     income: 0,
                     expense: 0,
-                    investment: 0
-                }
+                    investment: 0,
+                };
             }
 
-            dailyTotals[day][tx.type] += tx.amount
+            dailyTotals[day][tx.type] += tx.amount;
         }
-    })
+    });
 
     schedules.forEach((sch) => {
-        const date = new Date(sch.date)
+        const date = new Date(sch.date);
 
         if (date.getMonth() === month && date.getFullYear() === year) {
-
-            const day = date.getDate()
-
-            scheduleTotals[day] = (scheduleTotals[day] || 0) + sch.amount
+            const day = date.getDate();
+            scheduleTotals[day] = (scheduleTotals[day] || 0) + sch.amount;
         }
-    })
+    });
 
     return (
         <div className="grid grid-cols-7 gap-2">
 
-            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
-                <div key={d} className="text-sm font-medium text-gray-500 pb-2">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <div
+                    key={d}
+                    className="text-sm font-medium text-gray-500 dark:text-gray-400 pb-2"
+                >
                     {d}
                 </div>
             ))}
 
             {days.map((day, index) => {
-
-                const totals = dailyTotals[day] || {}
+                const totals = dailyTotals[day] || {};
 
                 const categories = [
                     totals.expense > 0 ? "expense" : null,
                     totals.income > 0 ? "income" : null,
-                    totals.investment > 0 ? "investment" : null
-                ].filter(Boolean)
+                    totals.investment > 0 ? "investment" : null,
+                ].filter(Boolean);
 
-                const singleCategory = categories.length === 1
+                const singleCategory = categories.length === 1;
 
                 return (
                     <div
                         key={index}
-                        className="bg-white border rounded-lg h-28 p-2 flex flex-col justify-between"
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg h-28 p-2 flex flex-col justify-between"
                     >
-
                         {day && (
                             <>
-                                {/* Top Row */}
                                 <div className="flex justify-between items-start">
 
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
                     {day}
                   </span>
 
                                     {scheduleTotals[day] && (
-                                        <span className="text-xs font-semibold text-black text-right">
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-200 text-right">
                       {formatCurrency(scheduleTotals[day])}
                     </span>
                                     )}
 
                                 </div>
 
-                                {/* Multiple Categories */}
                                 {!singleCategory && (
                                     <div className="flex flex-col gap-1 text-xs font-medium items-end">
 
@@ -125,7 +120,6 @@ export default function CalendarGrid({ year, month, transactions, schedules }) {
                                     </div>
                                 )}
 
-                                {/* Single Category Bottom */}
                                 {singleCategory && (
                                     <div className="text-xs font-medium self-end text-right">
 
@@ -149,14 +143,12 @@ export default function CalendarGrid({ year, month, transactions, schedules }) {
 
                                     </div>
                                 )}
-
                             </>
                         )}
-
                     </div>
-                )
+                );
             })}
 
         </div>
-    )
+    );
 }

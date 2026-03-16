@@ -1,70 +1,75 @@
-import { formatCurrency } from "../../utils/currency"
+import { formatCurrency } from "../../utils/currency";
 
-const categories = [
-    "Transportation",
-    "Shopping",
-    "Bills & Utilities",
-    "Entertainment",
-    "Healthcare",
-    "Housing",
-    "EMI",
-    "Donations & Gifts",
-    "Repairs & Services",
-    "Other"
-]
+export default function DailySummaryTable({ year, month, transactions = [] }) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-export default function DailySummaryTable({ year, month, transactions }) {
+    const filtered = transactions.filter((tx) => {
+        const d = new Date(tx.date);
 
-    const daysInMonth = new Date(year, month + 1, 0).getDate()
+        return (
+            (tx.type === "expense" || tx.type === "investment") &&
+            d.getFullYear() === year &&
+            d.getMonth() === month
+        );
+    });
 
-    const data = {}
+    let categories = [...new Set(filtered.map((t) => t.category))];
 
-    transactions.forEach((tx) => {
-        const d = new Date(tx.date)
+    if (!categories.includes("Investments")) {
+        categories.push("Investments");
+    }
 
-        if (d.getFullYear() === year && d.getMonth() === month) {
+    categories = categories.sort();
 
-            const day = d.getDate()
+    const data = {};
 
-            if (!data[day]) data[day] = {}
+    filtered.forEach((tx) => {
+        const day = new Date(tx.date).getDate();
 
-            data[day][tx.category] =
-                (data[day][tx.category] || 0) + tx.amount
+        if (!data[day]) {
+            data[day] = {};
         }
-    })
+
+        if (!data[day][tx.category]) {
+            data[day][tx.category] = 0;
+        }
+
+        data[day][tx.category] += Math.abs(tx.amount);
+    });
 
     function dayTotal(day) {
-        if (!data[day]) return 0
-        return Object.values(data[day]).reduce((a, b) => a + b, 0)
+        if (!data[day]) return 0;
+        return Object.values(data[day]).reduce((a, b) => a + b, 0);
     }
 
     function categoryTotal(cat) {
-        let total = 0
+        let total = 0;
+
         Object.values(data).forEach((d) => {
-            if (d[cat]) total += d[cat]
-        })
-        return total
+            if (d[cat]) total += d[cat];
+        });
+
+        return total;
     }
 
     const monthlyTotal = Object.values(data)
         .flatMap((d) => Object.values(d))
-        .reduce((a, b) => a + b, 0)
+        .reduce((a, b) => a + b, 0);
 
-    const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     function formatDayLabel(day) {
-        const date = new Date(year, month, day)
-        const weekday = weekdays[date.getDay()]
-        return `${String(day).padStart(2,"0")}-${weekday}`
+        const date = new Date(year, month, day);
+        const weekday = weekdays[date.getDay()];
+        return `${String(day).padStart(2, "0")}-${weekday}`;
     }
 
     return (
-        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-auto max-h-[600px]">
 
             <table className="w-full text-sm">
 
-                <thead className="bg-gray-50 border-b text-gray-600">
-
+                <thead className="bg-gray-50 dark:bg-gray-700 border-b text-gray-600 dark:text-gray-200 sticky top-0 z-10">
                 <tr>
 
                     <th className="px-3 py-2 text-left">Date</th>
@@ -75,72 +80,63 @@ export default function DailySummaryTable({ year, month, transactions }) {
                         </th>
                     ))}
 
-                    <th className="px-3 py-2 text-right bg-purple-100 text-purple-800 font-semibold">
+                    <th className="px-3 py-2 text-right bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 font-semibold">
                         Day Total
                     </th>
 
                 </tr>
-
                 </thead>
 
                 <tbody>
 
                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
-
-                    const total = dayTotal(day)
+                    const total = dayTotal(day);
 
                     return (
-                        <tr key={day} className="border-b">
+                        <tr
+                            key={day}
+                            className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
 
-                            <td className="px-3 py-2 font-medium">
+                            <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100">
                                 {formatDayLabel(day)}
                             </td>
 
                             {categories.map((cat) => {
-
-                                const value = data[day]?.[cat]
+                                const value = data[day]?.[cat];
 
                                 return (
-                                    <td key={cat} className="px-3 py-2 text-black">
-
+                                    <td
+                                        key={cat}
+                                        className="px-3 py-2 text-gray-800 dark:text-gray-200"
+                                    >
                                         {value ? formatCurrency(value) : "-"}
-
                                     </td>
-                                )
+                                );
                             })}
 
-                            <td className="px-3 py-2 text-right bg-purple-100 text-purple-800 font-semibold">
-
+                            <td className="px-3 py-2 text-right bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 font-semibold">
                                 {total ? formatCurrency(total) : "-"}
-
                             </td>
 
                         </tr>
-                    )
+                    );
                 })}
 
-                {/* Category Totals */}
+                <tr className="bg-purple-100 dark:bg-purple-900/40 font-semibold">
 
-                <tr className="bg-purple-100 font-semibold">
-
-                    <td className="px-3 py-2 text-purple-800">
+                    <td className="px-3 py-2 text-purple-800 dark:text-purple-300">
                         Category Total
                     </td>
 
                     {categories.map((cat) => (
-
-                        <td key={cat} className="px-3 py-2 text-purple-800">
-
+                        <td key={cat} className="px-3 py-2 text-purple-800 dark:text-purple-300">
                             {formatCurrency(categoryTotal(cat))}
-
                         </td>
-
                     ))}
 
-                    <td className="px-3 py-2 text-right text-purple-900 font-bold">
-
+                    <td className="px-3 py-2 text-right text-purple-900 dark:text-purple-200 font-bold">
                         {formatCurrency(monthlyTotal)}
-
                     </td>
 
                 </tr>
@@ -150,5 +146,5 @@ export default function DailySummaryTable({ year, month, transactions }) {
             </table>
 
         </div>
-    )
+    );
 }

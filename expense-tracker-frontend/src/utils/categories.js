@@ -6,48 +6,48 @@ import {
     Lightbulb,
     TrendingUp,
     Wallet
-} from "lucide-react"
+} from "lucide-react";
 
 export const categoryMap = {
     food: {
         label: "Food",
         icon: Utensils,
-        color: "bg-orange-100 text-orange-600"
+        color: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300"
     },
 
     rent: {
         label: "Rent",
         icon: Home,
-        color: "bg-blue-100 text-blue-600"
+        color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300"
     },
 
     shopping: {
         label: "Shopping",
         icon: ShoppingCart,
-        color: "bg-purple-100 text-purple-600"
+        color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300"
     },
 
     travel: {
         label: "Travel",
         icon: Plane,
-        color: "bg-green-100 text-green-600"
+        color: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300"
     },
 
     bills: {
         label: "Bills",
         icon: Lightbulb,
-        color: "bg-yellow-100 text-yellow-600"
+        color: "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-300"
     },
 
     investment: {
         label: "Investment",
         icon: TrendingUp,
-        color: "bg-indigo-100 text-indigo-600"
+        color: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300"
     },
 
     other: {
         label: "Other",
         icon: Wallet,
-        color: "bg-gray-100 text-gray-600"
+        color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
     }
-}
+};

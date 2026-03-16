@@ -2,8 +2,12 @@ import requests
 import re
 
 
-def ai_categorize(description, txn_time):
-    print(description)
+OLLAMA_URL = "http://localhost:11434/api/generate"
+MODEL_NAME = "gemma3:4b"
+
+
+def ai_categorize(description, merchant):
+
     prompt = f"""
 You are a financial transaction classifier.
 
@@ -12,16 +16,12 @@ Your job is to categorize bank transactions.
 Transaction Description:
 {description}
 
-Transaction Time:
-{txn_time}
-
 Return ONLY in this format:
 
-Category: <Main Category>
-SubCategory: <Sub Category>
+Main Category: <Main Category>
+Sub Category: <Sub Category>
 
-
-Allowed Categories and Sub Categories:
+Allowed Main Categories and Sub Categories:
 
 Food
 - Breakfast
@@ -29,10 +29,12 @@ Food
 - Dinner
 - Snacks
 - Beverages
+- others
 
 Living
 - Groceries
 - Medical
+- others
 
 Bills
 - Electricity
@@ -42,7 +44,8 @@ Bills
 - Gas
 - Maintenance
 - Rent
-- other
+- Subscriptions
+- others
 
 Travel
 - Cab
@@ -50,67 +53,57 @@ Travel
 - Metro
 - Bus
 - Fuel
-- other
+- others
 
 Family
 - Childcare
 - Education
 - Healthcare
 - Allowances
+- others
+
+Investment
+- MutualFunds
+- Stocks
+- others
 
 Financial
 - Insurance
-- Investment
+- others
 
 Lifestyle
 - Shopping
 - Entertainment
-- Subscriptions
+- others
 
-Other
+Others
 - Miscellaneous
-
-
-IMPORTANT RULES:
-
-If the transaction is FOOD related (restaurants, cafes, bakery, food delivery, etc),
-choose subcategory based on transaction time:
-
-Breakfast → 05:00 - 11:30  
-Lunch → 11:30 - 15:30  
-Snacks → 15:30 - 18:30  
-Dinner → 18:30 - 23:30  
-Beverages → coffee / tea / juice / bar / alcohol
-
-
-Examples:
-
-Restaurant at 09:00 → Food / Breakfast  
-Swiggy at 13:30 → Food / Lunch  
-Cafe Coffee Day at 16:00 → Food / Snacks  
-Restaurant at 21:00 → Food / Dinner  
-Starbucks coffee → Food / Beverages
-
-If not food related, ignore time and classify normally.
 
 Only return the two lines exactly.
 """
 
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "gemma3:4b",
-            "prompt": prompt,
-            "stream": False
-        }
-    )
+    try:
 
-    result = response.json()["response"]
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": MODEL_NAME,
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=30
+        )
 
-    category_match = re.search(r'Category:\s*(.*)', result)
-    sub_match = re.search(r'SubCategory:\s*(.*)', result)
+        result = response.json().get("response", "")
 
-    category = category_match.group(1).strip() if category_match else "Other"
+    except Exception:
+        return "Other", "Miscellaneous"
+
+    # safer parsing
+    main_match = re.search(r"Main Category:\s*([^\n\r]+)", result)
+    sub_match = re.search(r"Sub Category:\s*([^\n\r]+)", result)
+
+    main_category = main_match.group(1).strip() if main_match else "Other"
     sub_category = sub_match.group(1).strip() if sub_match else "Miscellaneous"
-    print(category, sub_category)
-    return category, sub_category
+
+    return main_category, sub_category
