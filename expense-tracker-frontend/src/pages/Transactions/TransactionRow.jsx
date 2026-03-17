@@ -30,7 +30,7 @@ export default function TransactionRow({
         <tr className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
 
             <td className="px-4 py-4 text-gray-600 dark:text-gray-300">
-                {date}
+                {tx.formattedDate}
             </td>
 
             <td className="px-4 py-4 text-right">
@@ -71,13 +71,12 @@ export default function TransactionRow({
                 </div>
             </td>
 
-            <td className="px-4 py-4">
-                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                    {tx.mode}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {tx.bank}
-                </div>
+            <td className="px-4 py-4 text-sm text-gray-800 dark:text-gray-100">
+                {tx.mode}
+            </td>
+
+            <td className="px-4 py-4 text-sm text-gray-800 dark:text-gray-100">
+                {tx.bank}
             </td>
 
             <td className="px-4 py-4">

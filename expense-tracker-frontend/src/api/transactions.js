@@ -39,17 +39,29 @@ export async function getTransactions() {
     return await res.json();
 }
 
-export async function updateTransactionCategory(id, category, subcategory) {
+export async function updateTransactionCategory(
+    id,
+    category,
+    subcategory,
+    type = null
+) {
+
+    const payload = {
+        category: category,
+        sub_category: subcategory
+    };
+
+    // Only send type if provided
+    if (type !== null) {
+        payload.type = type;
+    }
 
     const res = await fetch(`${API_BASE}/api/transactions/${id}`, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-            category: category,
-            sub_category: subcategory
-        })
+        body: JSON.stringify(payload)
     });
 
     if (!res.ok) {

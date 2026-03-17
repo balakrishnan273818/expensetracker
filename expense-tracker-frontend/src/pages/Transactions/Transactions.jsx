@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getTransactions, updateTransactionCategory } from "../../api/transactions";
+import { parseISO, format, isValid } from "date-fns";
 
 import TransactionsTable from "./TransactionsTable";
 import EditTransactionModal from "./EditTransactionModal";
@@ -9,12 +10,14 @@ export default function Transactions() {
     const [transactions, setTransactions] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
+    const [selectedMonth, setSelectedMonth] = useState("");
 
     const [filters, setFilters] = useState({
         date: "",
         type: "",
         category: "",
         mode: "",
+        bank: "",
         remarks: "",
         description: ""
     });
@@ -27,10 +30,22 @@ export default function Transactions() {
 
                 const data = await getTransactions();
 
-                const normalized = data.map(tx => ({
-                    ...tx,
-                    subcategory: tx.subcategory ?? tx.sub_category
-                }));
+                const normalized = data.map(tx => {
+
+                    const parsed = tx.date ? parseISO(tx.date) : null;
+                    const valid = parsed && isValid(parsed);
+
+                    return {
+                        ...tx,
+                        subcategory: tx.subcategory ?? tx.sub_category,
+                        parsedDate: valid ? parsed : null,
+                        monthKey: valid ? format(parsed, "MMMM yyyy") : "",
+                        formattedDate: valid ? format(parsed, "dd MMM yyyy") : "-",
+                        mode: tx.mode || "",
+                        bank: tx.bank || ""
+                    };
+
+                });
 
                 setTransactions(normalized);
 
@@ -46,23 +61,72 @@ export default function Transactions() {
 
     }, []);
 
-    const filteredTransactions = transactions.filter(tx => {
-        const txDate = new Date(tx.date).toLocaleDateString();
-        return (
-            (!filters.date ||
-                txDate.toLowerCase().includes(filters.date.toLowerCase())) &&
-            (!filters.type ||
-                (tx.type || "").toLowerCase().includes(filters.type.toLowerCase())) &&
-            (!filters.category ||
-                (tx.category || "").toLowerCase().includes(filters.category.toLowerCase())) &&
-            (!filters.mode ||
-                (tx.mode || "").toLowerCase().includes(filters.mode.toLowerCase())) &&
-            (!filters.remarks ||
-                (tx.remarks || "").toLowerCase().includes(filters.remarks.toLowerCase())) &&
-            (!filters.description ||
-                (tx.description || "").toLowerCase().includes(filters.description.toLowerCase()))
-        );
-    });
+    const availableMonths = useMemo(() => {
+
+        const map = new Map();
+
+        transactions.forEach(tx => {
+
+            if (!tx.monthKey || !tx.parsedDate) return;
+
+            const monthNumber = tx.parsedDate.getMonth();
+            const year = tx.parsedDate.getFullYear();
+
+            const sortKey = year * 100 + monthNumber;
+
+            map.set(tx.monthKey, sortKey);
+
+        });
+
+        return Array.from(map.entries())
+            .sort((a,b)=> b[1] - a[1])
+            .map(entry => entry[0]);
+
+    }, [transactions]);
+    useEffect(() => {
+
+        if (!selectedMonth && availableMonths.length > 0) {
+            setSelectedMonth(availableMonths[0]);
+        }
+
+    }, [availableMonths, selectedMonth]);
+
+    const filteredTransactions = useMemo(() => {
+
+        return transactions.filter(tx => {
+
+            const txDate = tx.formattedDate || "";
+
+            return (
+
+                (selectedMonth === "" || tx.monthKey === selectedMonth) &&
+
+                (!filters.date ||
+                    txDate.toLowerCase().includes(filters.date.toLowerCase())) &&
+
+                (!filters.type ||
+                    (tx.type || "").toLowerCase().includes(filters.type.toLowerCase())) &&
+
+                (!filters.category ||
+                    (tx.category || "").toLowerCase().includes(filters.category.toLowerCase())) &&
+
+                (!filters.mode ||
+                    (tx.mode || "").toLowerCase().includes(filters.mode.toLowerCase())) &&
+
+                (!filters.bank ||
+                    (tx.bank || "").toLowerCase().includes(filters.bank.toLowerCase())) &&
+
+                (!filters.remarks ||
+                    (tx.remarks || "").toLowerCase().includes(filters.remarks.toLowerCase())) &&
+
+                (!filters.description ||
+                    (tx.description || "").toLowerCase().includes(filters.description.toLowerCase()))
+
+            );
+
+        });
+
+    }, [transactions, filters, selectedMonth]);
 
     async function saveCategoryUpdate(activeTx) {
 
@@ -71,7 +135,8 @@ export default function Transactions() {
             await updateTransactionCategory(
                 activeTx.id,
                 activeTx.category,
-                activeTx.subcategory
+                activeTx.subcategory,
+                activeTx.type
             );
 
             setTransactions(prev =>
@@ -80,7 +145,8 @@ export default function Transactions() {
                         ? {
                             ...tx,
                             category: activeTx.category,
-                            subcategory: activeTx.subcategory
+                            subcategory: activeTx.subcategory,
+                            type: activeTx.type
                         }
                         : tx
                 )
@@ -99,13 +165,25 @@ export default function Transactions() {
     return (
         <div className="space-y-6 w-full">
 
-            {/*<TransactionsTable*/}
-            {/*    transactions={transactions}*/}
-            {/*    setTransactions={setTransactions}*/}
-            {/*    editMode={editMode}*/}
-            {/*    setEditMode={setEditMode}*/}
-            {/*    setActiveTx={setActiveTx}*/}
-            {/*/>*/}
+            {/* Month Tabs */}
+            <div className="flex gap-2 flex-wrap">
+
+                {availableMonths.map(month => (
+
+                    <button
+                        key={month}
+                        onClick={() => setSelectedMonth(month)}
+                        className={`px-3 py-1 rounded-full text-sm border
+                        ${selectedMonth === month
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300"}`}
+                    >
+                        {month}
+                    </button>
+
+                ))}
+
+            </div>
 
             <TransactionsTable
                 transactions={filteredTransactions}

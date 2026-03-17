@@ -7,7 +7,8 @@ export const categoryOptions = [
     "Transfer",
     "Income",
     "Other",
-    "Groceries"
+    "Groceries",
+    "Allowances"
 ];
 
 export const subcategoryMap = {
@@ -17,6 +18,13 @@ export const subcategoryMap = {
         "Dinner",
         "Snacks",
         "Beverages"
+    ],
+    Allowances: [
+        "Bhuvi",
+        "Thatha",
+        "Amma",
+        "Divya",
+        "others"
     ],
     Groceries: [
         "Fruits",
@@ -47,7 +55,8 @@ export const subcategoryMap = {
         "Mobile",
         "Subscription",
         "Gas",
-        "Rent"
+        "Rent",
+        "Charges"
     ],
 
     Investment: [

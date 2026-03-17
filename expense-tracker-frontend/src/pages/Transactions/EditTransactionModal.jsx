@@ -8,13 +8,44 @@ export default function EditTransactionModal({
 
     return (
 
-        <div className="fixed inset-0 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
 
-            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-96 space-y-4">
+            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-96 space-y-4 shadow-lg">
 
                 <h2 className="text-lg font-semibold">
                     Edit Transaction
                 </h2>
+
+                {/* Transaction Type */}
+
+                <div>
+
+                    <label className="text-sm">
+                        Transaction Type
+                    </label>
+
+                    <select
+                        value={activeTx.type || "expense"}
+                        onChange={(e) => {
+
+                            const value = e.target.value;
+
+                            setActiveTx(prev => ({
+                                ...prev,
+                                type: value
+                            }));
+
+                        }}
+                        className="w-full mt-1 border rounded px-3 py-2"
+                    >
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                        <option value="transfer">Transfer</option>
+                    </select>
+
+                </div>
+
+                {/* Category */}
 
                 <div>
 
@@ -47,6 +78,8 @@ export default function EditTransactionModal({
 
                 </div>
 
+                {/* Subcategory */}
+
                 <div>
 
                     <label className="text-sm">
@@ -76,6 +109,8 @@ export default function EditTransactionModal({
 
                 </div>
 
+                {/* Buttons */}
+
                 <div className="flex justify-end gap-3 pt-2">
 
                     <button
@@ -87,7 +122,7 @@ export default function EditTransactionModal({
 
                     <button
                         onClick={() => onSave(activeTx)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                         Save
                     </button>
