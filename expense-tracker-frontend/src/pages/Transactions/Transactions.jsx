@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getTransactions, updateTransactionCategory } from "../../api/transactions";
 import { parseISO, format, isValid } from "date-fns";
 
@@ -7,21 +8,25 @@ import EditTransactionModal from "./EditTransactionModal";
 
 export default function Transactions() {
 
+    const [searchParams] = useSearchParams();
+
     const [transactions, setTransactions] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
     const [selectedMonth, setSelectedMonth] = useState("");
 
-    const [filters, setFilters] = useState({
-        date: "",
+    // ✅ Initialize filters from URL (CRITICAL FIX)
+    const [filters, setFilters] = useState(() => ({
+        date: searchParams.get("date") || "",
         type: "",
         category: "",
         mode: "",
         bank: "",
         remarks: "",
         description: ""
-    });
+    }));
 
+    // ✅ Fetch transactions
     useEffect(() => {
 
         async function loadTransactions() {
@@ -50,9 +55,7 @@ export default function Transactions() {
                 setTransactions(normalized);
 
             } catch (err) {
-
                 console.error("Error fetching transactions:", err);
-
             }
 
         }
@@ -61,6 +64,7 @@ export default function Transactions() {
 
     }, []);
 
+    // ✅ Available months
     const availableMonths = useMemo(() => {
 
         const map = new Map();
@@ -83,6 +87,8 @@ export default function Transactions() {
             .map(entry => entry[0]);
 
     }, [transactions]);
+
+    // ✅ Default selected month
     useEffect(() => {
 
         if (!selectedMonth && availableMonths.length > 0) {
@@ -91,18 +97,19 @@ export default function Transactions() {
 
     }, [availableMonths, selectedMonth]);
 
+    // ✅ Filtering logic (FIXED)
     const filteredTransactions = useMemo(() => {
 
         return transactions.filter(tx => {
 
-            const txDate = tx.formattedDate || "";
-
             return (
 
-                (selectedMonth === "" || tx.monthKey === selectedMonth) &&
-
+                // ✅ Exact date match (safe)
                 (!filters.date ||
-                    txDate.toLowerCase().includes(filters.date.toLowerCase())) &&
+                    tx.date?.slice(0, 10) === filters.date) &&
+
+                // ✅ Month filter ONLY if no date filter
+                (filters.date || selectedMonth === "" || tx.monthKey === selectedMonth) &&
 
                 (!filters.type ||
                     (tx.type || "").toLowerCase().includes(filters.type.toLowerCase())) &&
@@ -128,6 +135,7 @@ export default function Transactions() {
 
     }, [transactions, filters, selectedMonth]);
 
+    // ✅ Save category update
     async function saveCategoryUpdate(activeTx) {
 
         try {
@@ -155,15 +163,20 @@ export default function Transactions() {
             setActiveTx(null);
 
         } catch (err) {
-
             console.error("Failed to update transaction:", err);
-
         }
 
     }
 
     return (
         <div className="space-y-6 w-full">
+
+            {/* ✅ Active Date Indicator */}
+            {filters.date && (
+                <div className="text-sm text-blue-600">
+                    Showing transactions for: {filters.date}
+                </div>
+            )}
 
             {/* Month Tabs */}
             <div className="flex gap-2 flex-wrap">

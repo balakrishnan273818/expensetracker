@@ -1,3 +1,5 @@
+import { parseISO } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "../../utils/currency";
 
 function getDaysInMonth(year, month) {
@@ -8,7 +10,14 @@ function getStartDay(year, month) {
     return new Date(year, month, 1).getDay();
 }
 
-export default function CalendarGrid({ year, month, transactions = [], schedules = [] }) {
+export default function CalendarGrid({
+                                         year,
+                                         month,
+                                         transactions = [],
+                                         schedules = []
+                                     }) {
+    const navigate = useNavigate(); // ✅ NEW
+
     const daysInMonth = getDaysInMonth(year, month);
     const startDay = getStartDay(year, month);
 
@@ -25,8 +34,9 @@ export default function CalendarGrid({ year, month, transactions = [], schedules
     const dailyTotals = {};
     const scheduleTotals = {};
 
+    // ✅ Aggregation (income / expense / investment)
     transactions.forEach((tx) => {
-        const date = new Date(tx.date);
+        const date = parseISO(tx.date);
 
         if (date.getMonth() === month && date.getFullYear() === year) {
             const day = date.getDate();
@@ -39,18 +49,48 @@ export default function CalendarGrid({ year, month, transactions = [], schedules
                 };
             }
 
-            dailyTotals[day][tx.type] += tx.amount;
+            if (tx.type === "income") {
+                dailyTotals[day].income += tx.amount;
+            }
+
+            if (tx.type === "expense") {
+                const amount = Math.abs(tx.amount);
+
+                const isInvestment =
+                    tx.category?.toLowerCase().includes("invest") ||
+                    tx.sub_category?.toLowerCase().includes("sip") ||
+                    tx.sub_category?.toLowerCase().includes("mutual");
+
+                if (isInvestment) {
+                    dailyTotals[day].investment += amount;
+                } else {
+                    dailyTotals[day].expense += amount;
+                }
+            }
         }
     });
 
     schedules.forEach((sch) => {
-        const date = new Date(sch.date);
+        const date = parseISO(sch.date);
 
         if (date.getMonth() === month && date.getFullYear() === year) {
             const day = date.getDate();
-            scheduleTotals[day] = (scheduleTotals[day] || 0) + sch.amount;
+            scheduleTotals[day] =
+                (scheduleTotals[day] || 0) + sch.amount;
         }
     });
+
+    // ✅ NEW: Click handler
+    const handleDayClick = (day) => {
+        if (!day) return;
+
+        const monthStr = String(month + 1).padStart(2, "0");
+        const dayStr = String(day).padStart(2, "0");
+
+        const date = `${year}-${monthStr}-${dayStr}`;
+
+        navigate(`/transactions?date=${date}`);
+    };
 
     return (
         <div className="grid grid-cols-7 gap-2">
@@ -67,88 +107,53 @@ export default function CalendarGrid({ year, month, transactions = [], schedules
             {days.map((day, index) => {
                 const totals = dailyTotals[day] || {};
 
-                const categories = [
-                    totals.expense > 0 ? "expense" : null,
-                    totals.income > 0 ? "income" : null,
-                    totals.investment > 0 ? "investment" : null,
-                ].filter(Boolean);
-
-                const singleCategory = categories.length === 1;
-
                 return (
                     <div
                         key={index}
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg h-28 p-2 flex flex-col justify-between"
+                        onClick={() => handleDayClick(day)} // ✅ NEW
+                        className="cursor-pointer bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg h-28 p-2 flex flex-col justify-between hover:shadow-md transition"
                     >
                         {day && (
                             <>
                                 <div className="flex justify-between items-start">
 
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                    {day}
-                  </span>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                        {day}
+                                    </span>
 
                                     {scheduleTotals[day] && (
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-200 text-right">
-                      {formatCurrency(scheduleTotals[day])}
-                    </span>
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-200">
+                                            {formatCurrency(scheduleTotals[day])}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col gap-1 text-xs font-medium items-end">
+
+                                    {totals.income > 0 && (
+                                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
+                                            + {formatCurrency(totals.income)}
+                                        </span>
+                                    )}
+
+                                    {totals.investment > 0 && (
+                                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">
+                                            {formatCurrency(totals.investment)}
+                                        </span>
+                                    )}
+
+                                    {totals.expense > 0 && (
+                                        <span className="bg-red-100 text-red-600 px-2 py-1 rounded-md font-semibold">
+                                            - {formatCurrency(totals.expense)}
+                                        </span>
                                     )}
 
                                 </div>
-
-                                {!singleCategory && (
-                                    <div className="flex flex-col gap-1 text-xs font-medium items-end">
-
-                                        {totals.expense > 0 && (
-                                            <span className="text-red-500 text-right">
-                        - {formatCurrency(totals.expense)}
-                      </span>
-                                        )}
-
-                                        {totals.income > 0 && (
-                                            <span className="text-green-600 text-right">
-                        + {formatCurrency(totals.income)}
-                      </span>
-                                        )}
-
-                                        {totals.investment > 0 && (
-                                            <span className="text-blue-600 text-right">
-                        {formatCurrency(totals.investment)}
-                      </span>
-                                        )}
-
-                                    </div>
-                                )}
-
-                                {singleCategory && (
-                                    <div className="text-xs font-medium self-end text-right">
-
-                                        {totals.expense > 0 && (
-                                            <span className="text-red-500">
-                        - {formatCurrency(totals.expense)}
-                      </span>
-                                        )}
-
-                                        {totals.income > 0 && (
-                                            <span className="text-green-600">
-                        + {formatCurrency(totals.income)}
-                      </span>
-                                        )}
-
-                                        {totals.investment > 0 && (
-                                            <span className="text-blue-600">
-                        {formatCurrency(totals.investment)}
-                      </span>
-                                        )}
-
-                                    </div>
-                                )}
                             </>
                         )}
                     </div>
                 );
             })}
-
         </div>
     );
 }
