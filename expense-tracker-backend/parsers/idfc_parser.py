@@ -1,8 +1,8 @@
 import pandas as pd
 from tqdm import tqdm
+from datetime import datetime
 
 ACCOUNT = "IDFC"
-
 
 def parse(file_path):
 
@@ -24,6 +24,15 @@ def parse(file_path):
     df["Debit"] = pd.to_numeric(df["Debit"], errors="coerce")
     df["Credit"] = pd.to_numeric(df["Credit"], errors="coerce")
 
+    # 🔥 FIXED DATE PARSING (explicit format)
+    def parse_idfc_date(val):
+        try:
+            return datetime.strptime(str(val).strip(), "%d-%b-%Y")
+        except Exception:
+            return pd.NaT
+
+    df["Transaction Date"] = df["Transaction Date"].apply(parse_idfc_date)
+
     records = []
 
     for _, r in tqdm(df.iterrows(), total=len(df), colour="cyan"):
@@ -31,12 +40,16 @@ def parse(file_path):
         debit = 0 if pd.isna(r["Debit"]) else r["Debit"]
         credit = 0 if pd.isna(r["Credit"]) else r["Credit"]
 
-        amount = credit if credit else -debit
-
-        date = pd.to_datetime(r["Transaction Date"]).strftime("%Y-%m-%d")
+        # safer amount logic
+        if credit > 0:
+            amount = credit
+        elif debit > 0:
+            amount = -debit
+        else:
+            amount = 0
 
         records.append({
-            "date": date,
+            "date": r["Transaction Date"].strftime("%Y-%m-%d"),
             "description": str(r["Particulars"]).strip(),
             "amount": amount,
             "bank": ACCOUNT

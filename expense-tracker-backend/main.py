@@ -25,6 +25,7 @@ PARSER_MAP = {
 def normalize_date(date_str):
 
     formats = [
+        "%Y-%m-%d",   # already normalized
         "%d-%m-%Y",   # Axis
         "%d/%m/%y",   # HDFC
         "%d-%b-%Y"    # IDFC
@@ -42,20 +43,27 @@ def process_records(records, ctx):
 
     for r in tqdm(records, colour="green"):
 
-        #print(r)
-        merchant, category, sub_category = categorize_transaction(
+        # 🔥 enforce normalization
+        try:
+            normalized_date = normalize_date(r["date"])
+        except Exception as e:
+            print(f"Skipping invalid date: {r['date']}")
+            continue
+
+        merchant, tx_type, category, sub_category = categorize_transaction(
             r["description"],
-            r["date"],
+            normalized_date,
             ctx
         )
 
         insert_transaction((
-            r["date"],
+            normalized_date,
             float(r["amount"]),
             r["description"],
             r["bank"],
             derive_payment_method(r["description"]),
             merchant,
+            tx_type,
             category,
             sub_category
         ))

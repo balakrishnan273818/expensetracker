@@ -13,10 +13,8 @@ CORS(app)
 
 @app.route("/api/transactions/<int:txn_id>/remarks", methods=["PATCH"])
 def update_remarks(txn_id):
-
-    data = request.json
-
-    remarks = data.get("remarks")
+    data = request.get_json(silent=True) or {}
+    remarks = data.get("remarks", "")
 
     update_transaction_remarks(txn_id, remarks)
 
@@ -44,7 +42,8 @@ def get_transactions():
             sub_category,
             mode,
             bank,
-            description
+            description,
+            remarks
         ) = row
 
         amount = float(amount)
@@ -56,14 +55,15 @@ def get_transactions():
 
         transactions.append({
             "id": txn_id,
-            "date": date.isoformat(),
+            "date": date.strftime("%Y-%m-%d") if date else None,
             "amount": amount,
             "type": txn_type,
             "category": category,
             "sub_category": sub_category,
             "mode": mode,
             "bank": bank,
-            "description": description
+            "description": description,
+            "remarks": remarks
         })
 
     return jsonify(transactions)
@@ -76,8 +76,9 @@ def update_transaction(txn_id):
 
     category = data.get("category")
     sub_category = data.get("sub_category")
+    txn_type = data.get("type")
 
-    update_transaction_category(txn_id, category, sub_category)
+    update_transaction_category(txn_id, category, sub_category, txn_type)
 
     return jsonify({"success": True})
 

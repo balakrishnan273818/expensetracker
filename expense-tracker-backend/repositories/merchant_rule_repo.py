@@ -1,20 +1,28 @@
 from db import DB_POOL
 
 
+# ---------------------------------------------------------
+# Load learned merchant rules
+# ---------------------------------------------------------
 def load_rules():
 
     conn = DB_POOL.getconn()
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT merchant, category, sub_category
+        SELECT merchant, type, category, sub_category
         FROM merchant_rules
     """)
 
     rules = {}
 
-    for merchant, category, sub_category in cur.fetchall():
-        rules[merchant.upper().strip()] = (category, sub_category)
+    for merchant, tx_type, category, sub_category in cur.fetchall():
+
+        rules[merchant.upper().strip()] = {
+            "type": tx_type,
+            "category": category,
+            "sub_category": sub_category
+        }
 
     cur.close()
     DB_POOL.putconn(conn)
@@ -22,23 +30,47 @@ def load_rules():
     return rules
 
 
-def learn_rule(merchant, category, sub_category):
+# ---------------------------------------------------------
+# Learn rule from user correction
+# ---------------------------------------------------------
+def learn_rule(merchant, tx_type, category, sub_category, amount=None):
 
     conn = DB_POOL.getconn()
-    cur = conn.cursor()
 
-    cur.execute("""
-        INSERT INTO merchant_rules (merchant, category, sub_category)
-        VALUES (%s,%s,%s)
-        ON CONFLICT (merchant) DO NOTHING
-    """, (merchant.upper().strip(), category, sub_category))
+    try:
+        cur = conn.cursor()
 
-    conn.commit()
+        merchant_key = merchant.upper().strip()
 
-    cur.close()
-    DB_POOL.putconn(conn)
+        cur.execute("""
+            INSERT INTO merchant_rules
+            (merchant, type, category, sub_category, sample_amount)
+            VALUES (%s,%s,%s,%s,%s)
+            ON CONFLICT (merchant)
+            DO UPDATE SET
+                type = EXCLUDED.type,
+                category = EXCLUDED.category,
+                sub_category = EXCLUDED.sub_category
+        """, (
+            merchant_key,
+            tx_type,
+            category,
+            sub_category,
+            amount
+        ))
+
+        print("RULE LEARNED:", merchant_key, tx_type, category, sub_category)
+
+        conn.commit()
+        cur.close()
+
+    finally:
+        DB_POOL.putconn(conn)
 
 
+# ---------------------------------------------------------
+# Load regex / pattern based merchant rules
+# ---------------------------------------------------------
 def load_merchant_patterns():
 
     conn = DB_POOL.getconn()
@@ -63,7 +95,7 @@ def load_merchant_patterns():
             "priority": priority
         })
 
-    # Important: sort by priority first, then pattern length
+    # sort patterns
     patterns.sort(key=lambda x: (x["priority"], -len(x["pattern"])))
 
     cur.close()
@@ -71,6 +103,10 @@ def load_merchant_patterns():
 
     return patterns
 
+
+# ---------------------------------------------------------
+# Load merchant aliases
+# ---------------------------------------------------------
 def load_aliases():
 
     conn = DB_POOL.getconn()
@@ -93,6 +129,10 @@ def load_aliases():
 
     return aliases
 
+
+# ---------------------------------------------------------
+# Load family transaction aliases
+# ---------------------------------------------------------
 def load_family_alias():
 
     conn = DB_POOL.getconn()

@@ -25,10 +25,20 @@ def parse(file_path):
         debit = 0 if pd.isna(debit) else debit
         credit = 0 if pd.isna(credit) else credit
 
-        amount = credit if credit else -debit
+        # safer amount logic
+        if credit > 0:
+            amount = credit
+        elif debit > 0:
+            amount = -debit
+        else:
+            amount = 0
 
-        date = pd.to_datetime(r["Tran Date"]).strftime("%Y-%m-%d")
-
+        # 🔥 FIXED DATE PARSING (explicit format)
+        try:
+            date = datetime.strptime(str(r["Tran Date"]).strip(), "%d-%m-%Y").strftime("%Y-%m-%d")
+        except Exception:
+            # fallback (in case pandas already parsed it)
+            date = pd.to_datetime(r["Tran Date"]).strftime("%Y-%m-%d")
 
         records.append({
             "date": date,

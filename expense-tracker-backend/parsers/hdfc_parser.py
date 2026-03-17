@@ -1,8 +1,8 @@
 import pandas as pd
 from tqdm import tqdm
+from datetime import datetime
 
 ACCOUNT = "HDFC"
-
 
 def parse(file_path):
 
@@ -18,7 +18,14 @@ def parse(file_path):
 
     df.columns = df.columns.str.replace("*", "", regex=False).str.strip()
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True, format='mixed')
+    # 🔥 FIXED DATE PARSING (STRICT FORMAT)
+    def parse_hdfc_date(val):
+        try:
+            return datetime.strptime(str(val).strip(), "%d/%m/%y")
+        except Exception:
+            return pd.NaT
+
+    df["Date"] = df["Date"].apply(parse_hdfc_date)
 
     withdraw_col = "Withdrawal Amt."
     deposit_col = "Deposit Amt."
@@ -37,7 +44,13 @@ def parse(file_path):
         debit = 0 if pd.isna(r[withdraw_col]) else r[withdraw_col]
         credit = 0 if pd.isna(r[deposit_col]) else r[deposit_col]
 
-        amount = credit if credit else -debit
+        # safer amount logic
+        if credit > 0:
+            amount = credit
+        elif debit > 0:
+            amount = -debit
+        else:
+            amount = 0
 
         records.append({
             "date": r["Date"].strftime("%Y-%m-%d"),

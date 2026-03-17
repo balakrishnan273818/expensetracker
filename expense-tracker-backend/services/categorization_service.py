@@ -3,11 +3,10 @@ from merchant_extractor import extract_merchant
 from categorizer import categorize
 from ai_categorizer import ai_categorize
 from repositories.merchant_rule_repo import learn_rule
-#from repositories.merchant_rule_repo import load_family_alias
 
-# services/categorization_service.py
 
 def normalize_description(desc: str) -> str:
+
     desc = desc.upper()
 
     titles = ["MR ", "MRS ", "SMT ", "DR "]
@@ -17,21 +16,26 @@ def normalize_description(desc: str) -> str:
 
     return desc
 
+
 def detect_family(description: str, family_alias: dict):
 
     desc = normalize_description(description)
 
     for name in family_alias:
+
         if name in desc:
+
             category, sub_category = family_alias[name]
 
             return {
                 "merchant": name,
+                "type": "expense",
                 "category": category,
                 "sub_category": sub_category
             }
 
     return None
+
 
 def derive_payment_method(description):
 
@@ -51,6 +55,7 @@ def derive_payment_method(description):
 
     return "Bank"
 
+
 def categorize_transaction(description, txn_time, ctx):
 
     rules = ctx.rules
@@ -58,111 +63,109 @@ def categorize_transaction(description, txn_time, ctx):
     aliases = ctx.aliases
     family_alias = ctx.family_alias
 
-    # --------------------------------
-    # 1 FAMILY DETECTION (before merchant extraction)
-    # --------------------------------
+    # ------------------------------------------------
+    # 1 FAMILY DETECTION
+    # ------------------------------------------------
 
     family = detect_family(description, family_alias)
 
     if family:
-        return family["merchant"], family["category"], family["sub_category"]
+        return (
+            family["merchant"],
+            family["type"],
+            family["category"],
+            family["sub_category"]
+        )
 
-    # --------------------------------
+    # ------------------------------------------------
     # 2 MERCHANT EXTRACTION
-    # --------------------------------
+    # ------------------------------------------------
 
     merchant_info = extract_merchant(description, patterns, aliases)
 
     merchant = merchant_info["merchant"]
     source = merchant_info.get("source")
 
-    # --------------------------------
+    # ------------------------------------------------
     # 3 INTERNAL TRANSFER
-    # --------------------------------
+    # ------------------------------------------------
 
     if source == "internal":
-        return merchant, "Transfer", "Internal"
+        return merchant, "transfer", "Transfer", "Internal"
 
-    # --------------------------------
+    # ------------------------------------------------
     # 4 PATTERN MATCH
-    # --------------------------------
+    # ------------------------------------------------
 
     if source == "pattern":
-        return merchant, merchant_info["category"], merchant_info["sub_category"]
+        return (
+            merchant,
+            "expense",
+            merchant_info["category"],
+            merchant_info["sub_category"]
+        )
 
-    # merchant extraction failed
     if not merchant:
-        return "UNKNOWN", "Other", "Miscellaneous"
+        return "UNKNOWN", "expense", "Other", "Miscellaneous"
 
     merchant = merchant.upper()
 
-    # --------------------------------
+    # ------------------------------------------------
     # 5 RULE LOOKUP
-    # --------------------------------
+    # ------------------------------------------------
 
-    category, sub_category = rules.get(merchant, (None, None))
+    rule = rules.get(merchant)
 
-    if category:
-        return merchant, category, sub_category
+    if rule:
 
-    # --------------------------------
+        return (
+            merchant,
+            rule["type"],
+            rule["category"],
+            rule["sub_category"]
+        )
+
+    # ------------------------------------------------
     # 6 STATIC CATEGORIZER
-    # --------------------------------
+    # ------------------------------------------------
 
     category, sub_category = categorize(merchant)
 
     if category != "Other":
-        return merchant, category, sub_category
 
-    # --------------------------------
+        tx_type = "expense"
+
+        return merchant, tx_type, category, sub_category
+
+    # ------------------------------------------------
     # 7 AI FALLBACK
-    # --------------------------------
+    # ------------------------------------------------
 
     category, sub_category = ai_categorize(description, merchant)
 
+    tx_type = "expense"
+
     PERSON_PATTERN = re.compile(r"^[A-Z]+\s[A-Z]+$")
 
-    # --------------------------------
+    # ------------------------------------------------
     # 8 AUTO LEARN RULE
-    # --------------------------------
+    # ------------------------------------------------
 
     if merchant and len(merchant) > 3:
+
         if not PERSON_PATTERN.match(merchant):
-            learn_rule(merchant, category, sub_category)
-            rules[merchant] = (category, sub_category)
 
-    #category, sub_category = normalize_food_subcategory(category, sub_category, txn_time)
+            learn_rule(
+                merchant,
+                tx_type,
+                category,
+                sub_category
+            )
 
-    return merchant, category, sub_category
+            rules[merchant] = {
+                "type": tx_type,
+                "category": category,
+                "sub_category": sub_category
+            }
 
-
-
-
-def normalize_food_subcategory(category, sub_category, txn_time):
-
-    if category != "Food":
-        return category, sub_category
-
-    if txn_time is None:
-        return "Food", "Other"
-
-    hour = txn_time.hour if hasattr(txn_time, "hour") else None
-
-    if hour is None:
-        return "Food", "Other"
-
-    if 5 <= hour < 11:
-        return "Food", "Breakfast"
-
-    if 11 <= hour < 15:
-        return "Food", "Lunch"
-
-    if 15 <= hour < 18:
-        return "Food", "Snacks"
-
-    if 18 <= hour <= 23:
-        return "Food", "Dinner"
-
-    return "Food", "Other"
-
-
+    return merchant, tx_type, category, sub_category
