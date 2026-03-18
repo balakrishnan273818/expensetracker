@@ -122,35 +122,35 @@ export default function TransactionsTable({
 
                     {/* ✅ SORT HEADER */}
                     <tr>
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("date")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("date")}>
                             Date {getSortIndicator("date")}
                         </th>
 
-                        <th className="px-4 py-3 text-right cursor-pointer" onClick={() => handleSort("amount")}>
+                        <th className="px-4 py-3 text-right cursor-pointer whitespace-nowrap" onClick={() => handleSort("amount")}>
                             Amount {getSortIndicator("amount")}
                         </th>
 
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("type")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("type")}>
                             Type {getSortIndicator("type")}
                         </th>
 
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("category")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("category")}>
                             Transaction {getSortIndicator("category")}
                         </th>
 
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("mode")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("mode")}>
                             Payment Mode {getSortIndicator("mode")}
                         </th>
 
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("bank")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("bank")}>
                             Bank {getSortIndicator("bank")}
                         </th>
 
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("remarks")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("remarks")}>
                             Remarks {getSortIndicator("remarks")}
                         </th>
 
-                        <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("description")}>
+                        <th className="px-4 py-3 cursor-pointer whitespace-nowrap" onClick={() => handleSort("description")}>
                             Description {getSortIndicator("description")}
                         </th>
                     </tr>
@@ -168,18 +168,21 @@ export default function TransactionsTable({
 
                         <th className="px-2 py-2 flex gap-1">
                             <input
-                                placeholder="min"
-                                value={filters.minAmount}
-                                onChange={(e)=>setFilters({...filters,minAmount:e.target.value})}
-                                className="w-16 px-1 py-1 border rounded text-xs"
+                                //placeholder="min"
+                                //value={filters.minAmount}
+                                //onChange={(e)=>setFilters({...filters,minAmount:e.target.value})}
+                                //className="w-16 px-1 py-1 border rounded text-xs"
+                                className="w-full px-2 py-1 border rounded"
+                                disabled
                             />
 
-                            <input
-                                placeholder="max"
-                                value={filters.maxAmount}
-                                onChange={(e)=>setFilters({...filters,maxAmount:e.target.value})}
+                            {/*<input
+                                //placeholder="max"
+                                //value={filters.maxAmount}
+                                //onChange={(e)=>setFilters({...filters,maxAmount:e.target.value})}
                                 className="w-16 px-1 py-1 border rounded text-xs"
-                            />
+                                disabled
+                            />*/}
                         </th>
 
                         <th>

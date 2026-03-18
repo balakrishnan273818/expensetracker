@@ -1,6 +1,7 @@
 import TypeIcon from "./TypeIcon";
 import { getSubcategories } from "../../constants/categories";
 import { formatDate } from "../../utils/date";
+import PaymentModeIcon from "./PaymentModeIcon";
 
 export default function TransactionRow({
                                            tx,
@@ -60,8 +61,11 @@ export default function TransactionRow({
                 </div>
             </td>
 
-            <td className="px-4 py-4 text-sm text-gray-800 dark:text-gray-100">
-                {tx.mode}
+            <td className="px-4 py-4 text-sm text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                    <PaymentModeIcon mode={tx.mode} />
+                    <span>{tx.mode}</span>
+                </div>
             </td>
 
             <td className="px-4 py-4 text-sm text-gray-800 dark:text-gray-100">
