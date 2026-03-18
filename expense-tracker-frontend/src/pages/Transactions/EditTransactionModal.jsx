@@ -6,21 +6,29 @@ export default function EditTransactionModal({
                                                  onSave
                                              }) {
 
+    const inputClass =
+        "w-full mt-1 border rounded px-3 py-2 " +
+        "bg-white text-gray-900 " +
+        "dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 " +
+        "focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+    const labelClass =
+        "text-sm text-gray-700 dark:text-gray-300";
+
     return (
 
-        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
 
-            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-96 space-y-4 shadow-lg">
+            <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl p-6 w-96 space-y-4 shadow-lg">
 
                 <h2 className="text-lg font-semibold">
                     Edit Transaction
                 </h2>
 
                 {/* Transaction Type */}
-
                 <div>
 
-                    <label className="text-sm">
+                    <label className={labelClass}>
                         Transaction Type
                     </label>
 
@@ -36,7 +44,7 @@ export default function EditTransactionModal({
                             }));
 
                         }}
-                        className="w-full mt-1 border rounded px-3 py-2"
+                        className={inputClass}
                     >
                         <option value="expense">Expense</option>
                         <option value="income">Income</option>
@@ -46,10 +54,9 @@ export default function EditTransactionModal({
                 </div>
 
                 {/* Category */}
-
                 <div>
 
-                    <label className="text-sm">
+                    <label className={labelClass}>
                         Category
                     </label>
 
@@ -67,22 +74,19 @@ export default function EditTransactionModal({
                             }));
 
                         }}
-                        className="w-full mt-1 border rounded px-3 py-2"
+                        className={inputClass}
                     >
-
                         {categoryOptions.map(cat => (
                             <option key={cat}>{cat}</option>
                         ))}
-
                     </select>
 
                 </div>
 
                 {/* Subcategory */}
-
                 <div>
 
-                    <label className="text-sm">
+                    <label className={labelClass}>
                         Subcategory
                     </label>
 
@@ -98,24 +102,24 @@ export default function EditTransactionModal({
                             }));
 
                         }}
-                        className="w-full mt-1 border rounded px-3 py-2"
+                        className={inputClass}
                     >
-
                         {(subcategoryMap[activeTx.category] || []).map(sub => (
                             <option key={sub}>{sub}</option>
                         ))}
-
                     </select>
 
                 </div>
 
                 {/* Buttons */}
-
                 <div className="flex justify-end gap-3 pt-2">
 
                     <button
                         onClick={() => setActiveTx(null)}
-                        className="px-4 py-2 border rounded-md"
+                        className="px-4 py-2 border rounded-md
+                                   bg-white text-gray-800
+                                   dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600
+                                   hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                         Cancel
                     </button>
