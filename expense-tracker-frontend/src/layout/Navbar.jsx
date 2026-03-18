@@ -80,11 +80,6 @@ export default function Navbar() {
                     Transactions
                 </NavLink>
 
-                <NavLink to="/settings" className={navClass}>
-                    <Settings size={18} />
-                    Settings
-                </NavLink>
-
             </nav>
 
         </aside>

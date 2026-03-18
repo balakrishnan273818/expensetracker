@@ -7,7 +7,6 @@ import DailySummary from "./pages/DailySummary/DailySummary";
 import OverallSummary from "./pages/OverallSummary/OverallSummary";
 import Budget from "./pages/Budget/Budget";
 import Transactions_archive from "./pages/Transactions/Transactions.jsx";
-import Settings from "./pages/Settings/Settings";
 
 function App() {
     return (
@@ -21,7 +20,6 @@ function App() {
                     <Route path="overall-summary" element={<OverallSummary />} />
                     <Route path="budget" element={<Budget />} />
                     <Route path="transactions" element={<Transactions_archive />} />
-                    <Route path="settings" element={<Settings />} />
                 </Route>
             </Routes>
         </BrowserRouter>
