@@ -13,7 +13,7 @@ export default function Transactions() {
     const [transactions, setTransactions] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
-    const [selectedMonth, setSelectedMonth] = useState("");
+    const [selectedMonth, setSelectedMonth] = useState("null");
 
     // ✅ Initialize filters from URL (CRITICAL FIX)
     const [filters, setFilters] = useState(() => ({
@@ -89,13 +89,7 @@ export default function Transactions() {
     }, [transactions]);
 
     // ✅ Default selected month
-    useEffect(() => {
-
-        if (!selectedMonth && availableMonths.length > 0) {
-            setSelectedMonth(availableMonths[0]);
-        }
-
-    }, [availableMonths, selectedMonth]);
+    const effectiveMonth = selectedMonth || availableMonths[0] || "";
 
     // ✅ Filtering logic (FIXED)
     const filteredTransactions = useMemo(() => {
@@ -109,7 +103,7 @@ export default function Transactions() {
                     tx.date?.slice(0, 10) === filters.date) &&
 
                 // ✅ Month filter ONLY if no date filter
-                (filters.date || selectedMonth === "" || tx.monthKey === selectedMonth) &&
+                (filters.date || effectiveMonth === "" || tx.monthKey === effectiveMonth) &&
 
                 (!filters.type ||
                     (tx.type || "").toLowerCase().includes(filters.type.toLowerCase())) &&
@@ -133,7 +127,7 @@ export default function Transactions() {
 
         });
 
-    }, [transactions, filters, selectedMonth]);
+    }, [transactions, filters, effectiveMonth]);
 
     // ✅ Save category update
     async function saveCategoryUpdate(activeTx) {
@@ -187,7 +181,7 @@ export default function Transactions() {
                         key={month}
                         onClick={() => setSelectedMonth(month)}
                         className={`px-3 py-1 rounded-full text-sm border
-                        ${selectedMonth === month
+                        ${effectiveMonth === month
                             ? "bg-blue-600 text-white border-blue-600"
                             : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300"}`}
                     >
