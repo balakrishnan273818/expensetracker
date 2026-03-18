@@ -1,4 +1,5 @@
 import { formatCurrency } from "../../utils/currency";
+import { formatDate } from "../../utils/date";
 
 export default function DailySummaryTable({ year, month, transactions = [] }) {
     const daysInMonth = new Date(year, month + 1, 0).getDate();

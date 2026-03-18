@@ -1,9 +1,11 @@
-export function formatDate(date) {
-    if (!date) return "";
+export function formatDate(dateStr) {
+    console.log("RAW:", dateStr);                  // 👈 ADD THIS
+    console.log("PARSED:", new Date(dateStr));     // 👈 ADD THIS
 
-    const d = new Date(date);
+    const date = new Date(dateStr);
 
-    return d.toLocaleDateString("en-IN", {
+    return date.toLocaleDateString("en-IN", {
+        weekday: "short",
         day: "2-digit",
         month: "short",
         year: "numeric"

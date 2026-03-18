@@ -1,6 +1,6 @@
 import { Pencil } from "lucide-react";
 import TransactionRow from "./TransactionRow";
-
+//import { formatDate } from "../../utils/date";
 export default function TransactionsTable({
                                               transactions,
                                               setTransactions,
@@ -10,7 +10,7 @@ export default function TransactionsTable({
                                               filters,
                                               setFilters
                                           }) {
-
+    //console.log("pages/TransactionsTable rendered");
     return (
         <>
             <div className="flex justify-between items-center">

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import StatCard from "../../components/cards/StatCard";
 import ChartCard from "../../components/cards/ChartCard";
-import TransactionTable from "../../components/tables/TransactionTable";
+import TransactionsTable from "../../components/tables/TransactionsTable.jsx";
 import TransactionDrawer from "../../components/drawer/TransactionDrawer";
 import CategoryBreakdownCard from "../../components/cards/CategoryBreakdownCard";
 
@@ -131,7 +131,7 @@ export default function Dashboard() {
                 <ExpensePieChart data={expensePieData} />
             </ChartCard>
 
-            <TransactionTable
+            <TransactionsTable
                 transactions={transactions.slice(0, 10)}
                 onSelect={(tx) => {
                     setSelectedTx(tx);

@@ -8,7 +8,7 @@ import {
     Wallet
 } from "lucide-react";
 
-export const categoryMap = {
+const rawCategoryMap = {
     food: {
         label: "Food",
         icon: Utensils,
@@ -51,3 +51,27 @@ export const categoryMap = {
         color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
     }
 };
+
+/**
+ * Normalize category string from DB/UI/LLM
+ */
+export function normalizeCategory(category) {
+    if (!category) return "other";
+
+    return category
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/&/g, "and")
+        .replace(/\s+/g, "");
+}
+
+/**
+ * Safe getter used everywhere instead of direct map access
+ */
+export function getCategoryMeta(category) {
+    const key = normalizeCategory(category);
+    return rawCategoryMap[key] || rawCategoryMap["other"];
+}
+
+export const categoryMap = rawCategoryMap;

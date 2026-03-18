@@ -1,18 +1,20 @@
 import { X } from "lucide-react";
 import { formatCurrency } from "../../utils/currency";
 import { formatDate } from "../../utils/date";
+import { getSubcategories } from "../../constants/categories";
 
 export default function TransactionDrawer({
                                               open,
                                               transaction,
                                               categories = [],
-                                              subcategories = {},
                                               onCategoryChange,
                                               onSubcategoryChange,
                                               onClose,
                                               onSave
                                           }) {
     if (!open || !transaction) return null;
+
+    const subcategories = getSubcategories(transaction.category);
 
     return (
         <div className="fixed inset-0 z-50 flex">
@@ -79,7 +81,7 @@ export default function TransactionDrawer({
                             }
                             className="w-full mt-1 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100"
                         >
-                            {(subcategories[transaction.category] || []).map((sub) => (
+                            {subcategories.map((sub) => (
                                 <option key={sub}>{sub}</option>
                             ))}
                         </select>

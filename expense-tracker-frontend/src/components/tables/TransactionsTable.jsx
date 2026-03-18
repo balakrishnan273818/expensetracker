@@ -2,7 +2,8 @@ import { formatCurrency } from "../../utils/currency";
 import { categoryMap } from "../../utils/categories";
 import { formatDate } from "../../utils/date";
 
-export default function TransactionTable({ transactions = [], onSelect }) {
+export default function TransactionsTable({ transactions = [], onSelect }) {
+    //console.log("TransactionsTable rendered");
     return (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5">
 

@@ -1,3 +1,5 @@
+import { normalizeCategory } from "../utils/categories";
+
 export const categoryOptions = [
     "Food",
     "Shopping",
@@ -8,10 +10,11 @@ export const categoryOptions = [
     "Income",
     "Other",
     "Groceries",
-    "Allowances"
+    "Allowances",
+    "Entertainment"
 ];
 
-export const subcategoryMap = {
+const rawSubcategoryMap = {
     Food: [
         "Breakfast",
         "Lunch",
@@ -19,6 +22,7 @@ export const subcategoryMap = {
         "Snacks",
         "Beverages"
     ],
+
     Allowances: [
         "Bhuvi",
         "Thatha",
@@ -26,18 +30,22 @@ export const subcategoryMap = {
         "Divya",
         "others"
     ],
+
     Groceries: [
         "Fruits",
         "Vegetables",
         "Meat",
         "Milk",
+        "Home essentials",
+        "Bathroom essentials",
+        "Cooking essentials",
         "Others"
     ],
 
     Shopping: [
         "Amazon",
         "Clothing",
-        "Groceries",
+        "Utilities",
         "Electronics"
     ],
 
@@ -56,14 +64,16 @@ export const subcategoryMap = {
         "Subscription",
         "Gas",
         "Rent",
-        "Charges"
+        "Charges",
+        "Credit Card"
     ],
 
     Investment: [
-        "Mutual Fund",
+        "Mutual Funds",
         "Stocks",
         "PPF",
-        "FD"
+        "FD",
+        "NPS"
     ],
 
     Transfer: [
@@ -83,8 +93,24 @@ export const subcategoryMap = {
         "Redemption",
         "Dividend"
     ],
+    Entertainment:[
+      "Tourism",
+      "Movie Tickets",
+      "Others"
+    ],
 
-    Other: [
-        "Misc"
+    Others: [
+        "Misc",
+        "Cash"
     ]
 };
+
+/**
+ * Always use this instead of direct map access
+ */
+export function getSubcategories(category) {
+    const key = normalizeCategory(category);
+    return rawSubcategoryMap[key] || [];
+}
+
+export const subcategoryMap = rawSubcategoryMap;
