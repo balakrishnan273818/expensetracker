@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getTransactions, updateTransactionCategory } from "../../api/transactions";
 import { parseISO, format, isValid } from "date-fns";
+//import { ChevronLeft, ChevronRight } from "lucide-react";
+//import { Pencil } from "lucide-react";
+import { Pencil, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 
 import TransactionsTable from "./TransactionsTable";
 import EditTransactionModal from "./EditTransactionModal";
@@ -13,9 +16,11 @@ export default function Transactions() {
     const [transactions, setTransactions] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
-    const [selectedMonth, setSelectedMonth] = useState("null");
 
-    // ✅ Initialize filters from URL (CRITICAL FIX)
+    // ✅ FIX: use null instead of "null"
+    const [selectedMonth, setSelectedMonth] = useState(null);
+
+    // ✅ Initialize filters from URL
     const [filters, setFilters] = useState(() => ({
         date: searchParams.get("date") || "",
         type: "",
@@ -64,7 +69,7 @@ export default function Transactions() {
 
     }, []);
 
-    // ✅ Available months
+    // ✅ Available months (latest → oldest)
     const availableMonths = useMemo(() => {
 
         const map = new Map();
@@ -83,26 +88,39 @@ export default function Transactions() {
         });
 
         return Array.from(map.entries())
-            .sort((a,b)=> b[1] - a[1])
+            .sort((a, b) => b[1] - a[1])
             .map(entry => entry[0]);
 
     }, [transactions]);
 
-    // ✅ Default selected month
+    // ✅ Effective month
     const effectiveMonth = selectedMonth || availableMonths[0] || "";
 
-    // ✅ Filtering logic (FIXED)
+    // ✅ Navigation
+    function prevMonth() {
+        const currentIndex = availableMonths.indexOf(effectiveMonth);
+        if (currentIndex < availableMonths.length - 1) {
+            setSelectedMonth(availableMonths[currentIndex + 1]);
+        }
+    }
+
+    function nextMonth() {
+        const currentIndex = availableMonths.indexOf(effectiveMonth);
+        if (currentIndex > 0) {
+            setSelectedMonth(availableMonths[currentIndex - 1]);
+        }
+    }
+
+    // ✅ Filtering logic
     const filteredTransactions = useMemo(() => {
 
         return transactions.filter(tx => {
 
             return (
 
-                // ✅ Exact date match (safe)
                 (!filters.date ||
                     tx.date?.slice(0, 10) === filters.date) &&
 
-                // ✅ Month filter ONLY if no date filter
                 (filters.date || effectiveMonth === "" || tx.monthKey === effectiveMonth) &&
 
                 (!filters.type ||
@@ -162,36 +180,91 @@ export default function Transactions() {
 
     }
 
+    function resetFilters() {
+        setFilters({
+            date: "",
+            type: "",
+            category: "",
+            mode: "",
+            bank: "",
+            remarks: "",
+            description: ""
+        });
+    }
+
     return (
         <div className="space-y-6 w-full">
 
-            {/* ✅ Active Date Indicator */}
-            {filters.date && (
-                <div className="text-sm text-blue-600">
-                    Showing transactions for: {filters.date}
-                </div>
-            )}
+            {/* ✅ TOP ROW: Title (left) + Month Navigator (right) */}
+            <div className="flex justify-between items-center">
 
-            {/* Month Tabs */}
-            <div className="flex gap-2 flex-wrap">
+                {/* ✅ TITLE + EDIT (grouped together) */}
+                <div className="flex items-center gap-3">
 
-                {availableMonths.map(month => (
+                    <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+                        Transactions
+                    </h1>
 
+                    {/* Edit */}
                     <button
-                        key={month}
-                        onClick={() => setSelectedMonth(month)}
-                        className={`px-3 py-1 rounded-full text-sm border
-                        ${effectiveMonth === month
-                            ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300"}`}
+                        onClick={() => setEditMode(prev => !prev)}
+                        className="p-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-700"
+                        title={editMode ? "Finish Editing" : "Edit Transactions"}
                     >
-                        {month}
+                        <Pencil size={16} />
                     </button>
 
-                ))}
+                    {/* Refresh / Clear Filters */}
+                    {(filters.date ||
+                        filters.type ||
+                        filters.category ||
+                        filters.mode ||
+                        filters.bank ||
+                        filters.remarks ||
+                        filters.description) && (
+
+                        <button
+                            onClick={resetFilters}
+                            className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            title="Clear Filters"
+                        >
+                            <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                        </button>
+
+                    )}
+
+                </div>
+
+                {/* RIGHT: Month Navigator */}
+                <div className="flex items-center gap-3">
+
+                    <button
+                        onClick={prevMonth}
+                        disabled={availableMonths.indexOf(effectiveMonth) === availableMonths.length - 1}
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition disabled:opacity-40"
+                    >
+                        <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                    </button>
+
+                    <span className="flex items-center h-full font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                    {effectiveMonth || "No data"}
+                    </span>
+
+                    <button
+                        onClick={nextMonth}
+                        disabled={availableMonths.indexOf(effectiveMonth) === 0}
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition disabled:opacity-40"
+                    >
+                        <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                    </button>
+
+                </div>
 
             </div>
 
+
+
+            {/* ✅ TABLE */}
             <TransactionsTable
                 transactions={filteredTransactions}
                 filters={filters}
@@ -201,6 +274,13 @@ export default function Transactions() {
                 setEditMode={setEditMode}
                 setActiveTx={setActiveTx}
             />
+
+            {/* ✅ BOTTOM: DATE NOTIFICATION */}
+            {filters.date && (
+                <div className="text-sm text-red-500">
+                    Showing transactions for: {filters.date}
+                </div>
+            )}
 
             {activeTx && (
                 <EditTransactionModal

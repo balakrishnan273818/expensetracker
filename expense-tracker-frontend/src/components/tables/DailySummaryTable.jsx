@@ -57,14 +57,6 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
         .flatMap((d) => Object.values(d))
         .reduce((a, b) => a + b, 0);
 
-    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-    function formatDayLabel(day) {
-        const date = new Date(year, month, day);
-        const weekday = weekdays[date.getDay()];
-        return `${String(day).padStart(2, "0")}-${weekday}`;
-    }
-
     return (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-auto max-h-[600px]">
 
@@ -99,8 +91,8 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
                             className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
 
-                            <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100">
-                                {formatDayLabel(day)}
+                            <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">
+                                {formatDate(new Date(year, month, day))}
                             </td>
 
                             {categories.map((cat) => {

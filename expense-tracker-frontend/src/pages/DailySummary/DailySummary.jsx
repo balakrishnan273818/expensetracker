@@ -2,6 +2,8 @@ import { useState } from "react";
 import DailySummaryTable from "../../components/tables/DailySummaryTable";
 import { formatCurrency } from "../../utils/currency";
 import useTransactions from "../../hooks/useTransactions";
+import { formatDate } from "../../utils/date";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function DailySummary() {
 
@@ -62,23 +64,27 @@ export default function DailySummary() {
             <div className="flex justify-between items-center">
 
                 <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-                    Daily Summary - {monthNames[month]} {year}
+                    Daily Summary
                 </h1>
 
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3">
 
                     <button
                         onClick={prevMonth}
-                        className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                     >
-                        ◀
+                        <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
                     </button>
+
+                    <span className="font-medium text-gray-800 dark:text-gray-100">
+                        {monthNames[month]} {year}
+                    </span>
 
                     <button
                         onClick={nextMonth}
-                        className="px-3 py-1 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                     >
-                        ▶
+                        <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-200" />
                     </button>
 
                 </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import CalendarGrid from "../../components/calendar/CalendarGrid";
 import useTransactions from "../../hooks/useTransactions";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Calendar() {
 
@@ -50,24 +51,24 @@ export default function Calendar() {
                     Calendar
                 </h1>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
 
                     <button
                         onClick={prevMonth}
-                        className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                     >
-                        ◀
+                        <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
                     </button>
 
                     <span className="font-medium text-gray-800 dark:text-gray-100">
-            {monthNames[month]} {year}
-          </span>
+                        {monthNames[month]} {year}
+                    </span>
 
                     <button
                         onClick={nextMonth}
-                        className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                        className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                     >
-                        ▶
+                        <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-200" />
                     </button>
 
                 </div>

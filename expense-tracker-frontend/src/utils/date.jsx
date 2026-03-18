@@ -1,6 +1,6 @@
 export function formatDate(dateStr) {
-    console.log("RAW:", dateStr);                  // 👈 ADD THIS
-    console.log("PARSED:", new Date(dateStr));     // 👈 ADD THIS
+    //console.log("RAW:", dateStr);                  // 👈 ADD THIS
+    //console.log("PARSED:", new Date(dateStr));     // 👈 ADD THIS
 
     const date = new Date(dateStr);
 
