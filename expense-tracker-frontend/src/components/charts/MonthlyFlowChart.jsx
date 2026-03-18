@@ -7,6 +7,7 @@ import {
     ResponsiveContainer,
     CartesianGrid
 } from "recharts";
+import { formatCurrency } from "../../utils/currency";
 
 export default function MonthlyFlowChart({ data = [] }) {
     return (
@@ -35,13 +36,17 @@ export default function MonthlyFlowChart({ data = [] }) {
                     />
 
                     <Tooltip
-                        formatter={(value) => `₹${value}`}
+                        formatter={(value, name) => [
+                            formatCurrency(Number(value).toFixed(2)),
+                            name === "income" ? "Income" : "Expense"
+                        ]}
                         contentStyle={{
                             backgroundColor: "var(--tooltip-bg)",
                             border: "none",
                             borderRadius: "8px",
                             color: "var(--tooltip-text)"
                         }}
+                        cursor={{ fill: "rgba(156,163,175,0.1)" }}
                     />
 
                     <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
