@@ -26,13 +26,21 @@ export default function TransactionFilters({
 
             <input
                 placeholder="Search description..."
-                className="px-3 py-2 border rounded-md bg-white dark:bg-gray-900 dark:border-gray-600"
+                className="px-3 py-2 border rounded-md
+                           bg-white dark:bg-gray-900
+                           border-gray-300 dark:border-gray-600
+                           text-black dark:text-white
+                           placeholder-gray-400 dark:placeholder-gray-500
+                           focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={filters.search}
                 onChange={(e) => updateFilter("search", e.target.value)}
             />
 
             <select
-                className="px-3 py-2 border rounded-md bg-white dark:bg-gray-900 dark:border-gray-600"
+                className="px-3 py-2 border rounded-md
+                           bg-white dark:bg-gray-900
+                           border-gray-300 dark:border-gray-600
+                           text-black dark:text-white"
                 value={filters.category}
                 onChange={(e) => updateFilter("category", e.target.value)}
             >
@@ -43,7 +51,10 @@ export default function TransactionFilters({
             </select>
 
             <select
-                className="px-3 py-2 border rounded-md bg-white dark:bg-gray-900 dark:border-gray-600"
+                className="px-3 py-2 border rounded-md
+                           bg-white dark:bg-gray-900
+                           border-gray-300 dark:border-gray-600
+                           text-black dark:text-white"
                 value={filters.bank}
                 onChange={(e) => updateFilter("bank", e.target.value)}
             >
@@ -54,7 +65,10 @@ export default function TransactionFilters({
             </select>
 
             <select
-                className="px-3 py-2 border rounded-md bg-white dark:bg-gray-900 dark:border-gray-600"
+                className="px-3 py-2 border rounded-md
+                           bg-white dark:bg-gray-900
+                           border-gray-300 dark:border-gray-600
+                           text-black dark:text-white"
                 value={filters.type}
                 onChange={(e) => updateFilter("type", e.target.value)}
             >

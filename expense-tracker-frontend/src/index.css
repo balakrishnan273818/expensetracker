@@ -27,3 +27,21 @@ body {
   --tooltip-bg: #1f2937;
   --tooltip-text: #f9fafb;
 }
+
+input, select, textarea {
+  @apply text-gray-900 bg-white border-gray-300;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  @apply text-gray-100 bg-gray-900 border-gray-600;
+}
+
+input::placeholder {
+  @apply text-gray-400;
+}
+
+.dark input::placeholder {
+  @apply text-gray-500;
+}
