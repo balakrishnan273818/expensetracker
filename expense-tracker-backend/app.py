@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from repositories.transaction_repo import update_transaction_remarks
+from repositories.budget_repo import get_budgets_by_month, upsert_budgets
 
 from repositories.transaction_repo import (
     fetch_transactions,
@@ -92,6 +93,50 @@ def bulk_update():
 
     return jsonify({"updated": len(updates)})
 
+@app.route("/api/budgets", methods=["GET"])
+def get_budgets():
+
+    month = request.args.get("month")  # "2026-03"
+
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    month_date = f"{month}-01"
+
+    rows = get_budgets_by_month(month_date)
+
+    budgets = []
+    monthly_income = 0
+
+    for r in rows:
+        budgets.append({
+            "category": r[0],
+            "budget_amount": float(r[1] or 0)
+        })
+        monthly_income = float(r[2] or 0)
+
+    return jsonify({
+        "monthly_income": monthly_income,
+        "budgets": budgets
+    })
+
+@app.route("/api/budgets/bulk", methods=["POST"])
+def save_budgets():
+
+    data = request.json
+
+    print("BUDGET API HIT:", data)  # 🔥 DEBUG
+
+    month = data.get("month")
+    monthly_income = data.get("monthly_income", 0)
+    budgets = data.get("budgets", [])
+
+    if not month:
+        return jsonify({"error": "month required"}), 400
+
+    upsert_budgets(month, budgets, monthly_income)
+
+    return jsonify({"status": "success"})
 
 if __name__ == "__main__":
     app.run(debug=True)

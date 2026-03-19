@@ -4,16 +4,14 @@ import { formatCurrency } from "../../utils/currency";
 import useTransactions from "../../hooks/useTransactions";
 import { formatDate } from "../../utils/date";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMonth } from "../../context/MonthContext";
+
+
 
 export default function DailySummary() {
 
-    const today = new Date();
-
-    const [year, setYear] = useState(today.getFullYear());
-    const [month, setMonth] = useState(today.getMonth());
-
     const { transactions, loading } = useTransactions();
-
+    const { year, month, setYear, setMonth } = useMonth();
     const monthNames = [
         "January","February","March","April","May","June",
         "July","August","September","October","November","December"

@@ -45,3 +45,14 @@ input::placeholder {
 .dark input::placeholder {
   @apply text-gray-500;
 }
+
+/* Remove number input spinner */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}

@@ -1,0 +1,111 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 1AA9-BD06
+E:.
+¦   App.css
+¦   App.jsx
+¦   index.css
+¦   main.jsx
+¦   project_archi.txt
+¦   project_structure.txt
+¦   
++---api
+¦       analytics.js
+¦       budgets.js
+¦       client.js
+¦       transactions.js
+¦       
++---assets
+¦   ¦   react.svg
+¦   ¦   
+¦   +---banks
+¦           axis.png
+¦           hdfc.png
+¦           idfc.png
+¦           
++---components
+¦   ¦   ThemeToggle.jsx
+¦   ¦   
+¦   +---budget
+¦   ¦       BudgetProgressCard.jsx
+¦   ¦       
+¦   +---calendar
+¦   ¦       CalendarGrid.jsx
+¦   ¦       DayTransactionsModal.jsx
+¦   ¦       
+¦   +---cards
+¦   ¦       BudgetCard.jsx
+¦   ¦       CategoryBreakdownCard.jsx
+¦   ¦       ChartCard.jsx
+¦   ¦       StatCard.jsx
+¦   ¦       
+¦   +---charts
+¦   ¦       CategorySpendingChart.jsx
+¦   ¦       ExpensePieChart.jsx
+¦   ¦       InvestmentPieChart.jsx
+¦   ¦       MonthlyFlowChart.jsx
+¦   ¦       
+¦   +---common
+¦   ¦       PageHeader.jsx
+¦   ¦       
+¦   +---drawer
+¦   ¦       TransactionDrawer.jsx
+¦   ¦       
+¦   +---filters
+¦   ¦       TransactionFilters.jsx
+¦   ¦       
+¦   +---tables
+¦   ¦       DailySummaryTable.jsx
+¦   ¦       TransactionsTable.jsx
+¦   ¦       
+¦   +---upload
+¦           FileDropZone.jsx
+¦           
++---constants
+¦       categories.js
+¦       
++---context
+¦       AppContext.jsx
+¦       MonthContext.jsx
+¦       
++---hooks
+¦       useBudget.js
+¦       useTheme.jsx
+¦       useTransactions.js
+¦       
++---layout
+¦       MainLayout.jsx
+¦       Navbar.jsx
+¦       PageHeader.jsx
+¦       
++---pages
+¦   +---Budget
+¦   ¦       Budget.jsx
+¦   ¦       BudgetRow.jsx
+¦   ¦       
+¦   +---Calendar
+¦   ¦       Calendar.jsx
+¦   ¦       
+¦   +---DailySummary
+¦   ¦       DailySummary.jsx
+¦   ¦       
+¦   +---Dashboard
+¦   ¦       Dashboard.jsx
+¦   ¦       
+¦   +---OverallSummary
+¦   ¦       OverallSummary.jsx
+¦   ¦       
+¦   +---Transactions
+¦           BankIcon.jsx
+¦           EditTransactionModal.jsx
+¦           PaymentModeIcon.jsx
+¦           TransactionRow.jsx
+¦           Transactions.jsx
+¦           TransactionsTable.jsx
+¦           TypeIcon.jsx
+¦           
++---utils
+        categories.js
+        currency.jsx
+        date.jsx
+        transactionParser.js
+        
