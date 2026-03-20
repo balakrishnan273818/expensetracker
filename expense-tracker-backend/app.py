@@ -1,16 +1,41 @@
+import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from repositories.transaction_repo import update_transaction_remarks
 from repositories.budget_repo import get_budgets_by_month, upsert_budgets
-
+import threading
 from repositories.transaction_repo import (
     fetch_transactions,
     update_transaction_category,
     bulk_update_transactions
 )
+from werkzeug.utils import secure_filename
+from main import run_ingestion
+from main import run_ingestion_file  # we will create this
 
 app = Flask(__name__)
 CORS(app)
+
+
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+@app.route("/api/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        return {"error": "No file"}, 400
+
+    file = request.files["file"]
+
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+
+    file.save(file_path)
+
+    # Run ingestion for this file
+    run_ingestion_file(file_path)
+
+    return {"status": "uploaded & processed"}
 
 @app.route("/api/transactions/<int:txn_id>/remarks", methods=["PATCH"])
 def update_remarks(txn_id):
@@ -137,6 +162,13 @@ def save_budgets():
     upsert_budgets(month, budgets, monthly_income)
 
     return jsonify({"status": "success"})
+
+@app.post("/ingest")
+def trigger_ingestion():
+    thread = threading.Thread(target=run_ingestion)
+    thread.start()
+    return {"status": "started"}
+
 
 if __name__ == "__main__":
     app.run(debug=True)

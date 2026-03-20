@@ -85,9 +85,7 @@ def process_bank(bank_folder, module_name, ctx):
 
             process_records(records, ctx)
 
-
-def main():
-
+def run_ingestion():
     # Load once
     rules = load_rules()
     patterns = load_merchant_patterns()
@@ -99,6 +97,30 @@ def main():
     for bank, module in PARSER_MAP.items():
         process_bank(bank, module, ctx)
 
+def run_ingestion_file(file_path):
+
+    rules = load_rules()
+    patterns = load_merchant_patterns()
+    aliases = load_aliases()
+    family_alias = load_family_alias()
+
+    ctx = EngineContext(rules, patterns, aliases, family_alias)
+
+    # Detect bank type from filename or input
+    if "axis" in file_path.lower():
+        module = "parsers.axis_parser"
+    elif "hdfc" in file_path.lower():
+        module = "parsers.hdfc_parser"
+    elif "idfc" in file_path.lower():
+        module = "parsers.idfc_parser"
+    else:
+        raise ValueError("Unknown bank format")
+
+    parser = importlib.import_module(module)
+
+    records = parser.parse(file_path)
+
+    process_records(records, ctx)
 
 if __name__ == "__main__":
-    main()
+    run_ingestion()
