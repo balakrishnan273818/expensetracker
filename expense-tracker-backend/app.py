@@ -1,65 +1,194 @@
 import os
+import threading
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from repositories.transaction_repo import update_transaction_remarks
-from repositories.budget_repo import get_budgets_by_month, upsert_budgets
-import threading
+from werkzeug.utils import secure_filename
+from datetime import datetime
+import pandas as pd
+
 from repositories.transaction_repo import (
     fetch_transactions,
     update_transaction_category,
-    bulk_update_transactions
+    bulk_update_transactions,
+    update_transaction_remarks
 )
-from werkzeug.utils import secure_filename
-from main import run_ingestion
-from main import run_ingestion_file  # we will create this
+from repositories.budget_repo import get_budgets_by_month, upsert_budgets
+from repositories.upload_repo import insert_upload_history, fetch_upload_history, update_upload_status
+
+from main import ingest_file  # ✅ correct import
 
 app = Flask(__name__)
 CORS(app)
 
-
+# ==============================
+# CONFIG
+# ==============================
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+def detect_bank(file_path, fallback_bank=None):
+
+    try:
+        df = pd.read_excel(file_path, nrows=5)
+        columns = [str(c).lower() for c in df.columns]
+
+        if any("particulars" in c for c in columns):
+            return "axis"
+        elif any("narration" in c for c in columns):
+            return "hdfc"
+        elif any("transaction date" in c for c in columns):
+            return "idfc"
+
+    except Exception:
+        pass
+
+    return fallback_bank
+
+def process_upload(file_path, bank, upload_id):
+
+    try:
+        result = ingest_file(file_path, bank)
+
+        update_upload_status(
+            upload_id,
+            "success",
+            result
+        )
+
+    except Exception as e:
+        print("Upload failed:", str(e))
+
+        update_upload_status(
+            upload_id,
+            "failed",
+            0
+        )
+
+
+# ==============================
+# FILE UPLOAD + INGESTION
+# ==============================
+
 @app.route("/api/upload", methods=["POST"])
 def upload_file():
+
     if "file" not in request.files:
         return {"error": "No file"}, 400
 
     file = request.files["file"]
+    bank = request.form.get("bank")
+
+    if not bank:
+        return {"error": "bank is required"}, 400
 
     filename = secure_filename(file.filename)
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
 
+    if not filename.endswith((".xls", ".xlsx")):
+        return {"error": "Invalid file format"}, 400
+
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(file_path)
 
-    # Run ingestion for this file
-    run_ingestion_file(file_path)
+    file_size = os.path.getsize(file_path)
 
-    return {"status": "uploaded & processed"}
+    detected_bank = detect_bank(file_path, bank)
 
-@app.route("/api/transactions/<int:txn_id>/remarks", methods=["PATCH"])
-def update_remarks(txn_id):
-    data = request.get_json(silent=True) or {}
-    remarks = data.get("remarks", "")
+    # ✅ Insert as processing FIRST
+    upload_id = insert_upload_history(
+        filename,
+        detected_bank,
+        file_size,
+        0,
+        "processing"
+    )
 
-    update_transaction_remarks(txn_id, remarks)
+    # ✅ Run background processing
+    threading.Thread(
+        target=process_upload,
+        args=(file_path, detected_bank, upload_id)
+    ).start()
 
-    return jsonify({"success": True})
+    # ✅ Immediate response
+    return jsonify({
+        "file_name": filename,
+        "bank": detected_bank,
+        "uploaded_at": datetime.utcnow().isoformat(),
+        "file_size": file_size,
+        "transactions_added": 0,
+        "status": "processing"
+    })
+
+
+# @app.route("/api/upload", methods=["POST"])
+# def upload_file():
+#     if "file" not in request.files:
+#         return {"error": "No file"}, 400
+#
+#     file = request.files["file"]
+#     bank = request.form.get("bank")  # ✅ REQUIRED
+#
+#     if not bank:
+#         return {"error": "bank is required (axis/hdfc/idfc)"}, 400
+#
+#     filename = secure_filename(file.filename)
+#     file_path = os.path.join(UPLOAD_FOLDER, filename)
+#
+#     file.save(file_path)
+#
+#     # 🔥 Run ingestion in background (non-blocking)
+#     threading.Thread(target=ingest_file, args=(file_path, bank)).start()
+#
+#     return {"status": "processing started"}
+
+
+# ==============================
+# HEALTH CHECK
+# ==============================
+
+@app.route("/api/upload/history", methods=["GET"])
+def get_upload_history():
+
+    rows = fetch_upload_history()
+
+    history = []
+
+    for r in rows:
+        (
+            id,
+            file_name,
+            bank,
+            uploaded_at,
+            file_size,
+            transactions_added,
+            status
+        ) = r
+
+        history.append({
+            "id": id,
+            "file_name": file_name,
+            "bank": bank,
+            "uploaded_at": uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "file_size": file_size,
+            "transactions_added": transactions_added,
+            "status": status
+        })
+
+    return jsonify(history)
 
 @app.route("/")
 def home():
     return "Expense tracker backend running"
 
 
+# ==============================
+# TRANSACTIONS APIs
+# ==============================
 @app.route("/api/transactions", methods=["GET"])
 def get_transactions():
-
     rows = fetch_transactions()
-
     transactions = []
 
     for row in rows:
-
         (
             txn_id,
             date,
@@ -97,7 +226,6 @@ def get_transactions():
 
 @app.route("/api/transactions/<int:txn_id>", methods=["PATCH"])
 def update_transaction(txn_id):
-
     data = request.json
 
     category = data.get("category")
@@ -111,23 +239,32 @@ def update_transaction(txn_id):
 
 @app.route("/api/transactions/bulk", methods=["PATCH"])
 def bulk_update():
-
     updates = request.json
-
     bulk_update_transactions(updates)
-
     return jsonify({"updated": len(updates)})
 
+
+@app.route("/api/transactions/<int:txn_id>/remarks", methods=["PATCH"])
+def update_remarks(txn_id):
+    data = request.get_json(silent=True) or {}
+    remarks = data.get("remarks", "")
+
+    update_transaction_remarks(txn_id, remarks)
+
+    return jsonify({"success": True})
+
+
+# ==============================
+# BUDGET APIs
+# ==============================
 @app.route("/api/budgets", methods=["GET"])
 def get_budgets():
-
-    month = request.args.get("month")  # "2026-03"
+    month = request.args.get("month")
 
     if not month:
         return jsonify({"error": "month is required"}), 400
 
     month_date = f"{month}-01"
-
     rows = get_budgets_by_month(month_date)
 
     budgets = []
@@ -145,12 +282,10 @@ def get_budgets():
         "budgets": budgets
     })
 
+
 @app.route("/api/budgets/bulk", methods=["POST"])
 def save_budgets():
-
     data = request.json
-
-    print("BUDGET API HIT:", data)  # 🔥 DEBUG
 
     month = data.get("month")
     monthly_income = data.get("monthly_income", 0)
@@ -163,12 +298,9 @@ def save_budgets():
 
     return jsonify({"status": "success"})
 
-@app.post("/ingest")
-def trigger_ingestion():
-    thread = threading.Thread(target=run_ingestion)
-    thread.start()
-    return {"status": "started"}
 
-
+# ==============================
+# LOCAL RUN
+# ==============================
 if __name__ == "__main__":
     app.run(debug=True)

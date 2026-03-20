@@ -8,7 +8,7 @@ import {
     BarChart3,
     Wallet,
     Receipt,
-    Settings,
+    UploadCloud
 } from "lucide-react";
 
 export default function Navbar() {
@@ -78,6 +78,10 @@ export default function Navbar() {
                 <NavLink to="/transactions" className={navClass}>
                     <Receipt size={18} />
                     Transactions
+                </NavLink>
+                <NavLink to="/upload" className={navClass}>
+                    <UploadCloud size={18} />
+                    Upload
                 </NavLink>
 
             </nav>

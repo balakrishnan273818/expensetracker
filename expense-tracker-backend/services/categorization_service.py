@@ -106,7 +106,7 @@ def categorize_transaction(description, txn_time, ctx):
         )
 
     if not merchant:
-        return "UNKNOWN", "expense", "Other", "Miscellaneous"
+        return "UNKNOWN", "expense", "Others", "Miscellaneous"
 
     merchant = merchant.upper()
 
@@ -131,7 +131,7 @@ def categorize_transaction(description, txn_time, ctx):
 
     category, sub_category = categorize(merchant)
 
-    if category != "Other":
+    if category != "Others":
 
         tx_type = "expense"
 

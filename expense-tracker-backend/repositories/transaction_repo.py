@@ -38,7 +38,7 @@ def learn_merchant_rule(txn_id):
             sub_category,
             amount
         ))
-
+        print("RULE UPDATED:", merchant_key, tx_type, category, sub_category)
         conn.commit()
         cur.close()
 
@@ -142,19 +142,22 @@ def insert_transaction(record):
     conn = DB_POOL.getconn()
 
     try:
-
         cur = conn.cursor()
 
         cur.execute("""
             INSERT INTO transactions
-            (date, amount, description, bank, mode, merchant,type, category, sub_category)
+            (date, amount, description, bank, mode, merchant, type, category, sub_category)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT DO NOTHING
+            RETURNING id
         """, record)
 
-        conn.commit()
+        result = cur.fetchone()
 
+        conn.commit()
         cur.close()
+
+        return result is not None  # ✅ True if inserted
 
     except Exception:
         conn.rollback()

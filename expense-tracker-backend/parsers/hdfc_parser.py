@@ -2,7 +2,7 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 
-ACCOUNT = "HDFC"
+ACCOUNT = "hdfc"
 
 def parse(file_path):
 

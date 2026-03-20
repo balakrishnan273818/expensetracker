@@ -32,4 +32,4 @@ def categorize(description):
         if re.search(rf"\b{merchant}\b", desc):
             return category_pair
 
-    return ("Other", "Miscellaneous")
+    return ("Others", "Miscellaneous")

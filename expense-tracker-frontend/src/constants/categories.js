@@ -8,7 +8,7 @@ export const categoryOptions = [
     "Investment",
     "Transfer",
     "Income",
-    "Other",
+    "Others",
     "Groceries",
     "Allowances",
     "Entertainment"
@@ -20,7 +20,8 @@ const rawSubcategoryMap = {
         "Lunch",
         "Dinner",
         "Snacks",
-        "Beverages"
+        "Beverages",
+        "Others"
     ],
 
     Allowances: [
@@ -28,7 +29,7 @@ const rawSubcategoryMap = {
         "Thatha",
         "Amma",
         "Divya",
-        "others"
+        "Others"
     ],
 
     Groceries: [
@@ -46,7 +47,8 @@ const rawSubcategoryMap = {
         "Amazon",
         "Clothing",
         "Utilities",
-        "Electronics"
+        "Electronics",
+        "Others"
     ],
 
     Travel: [
@@ -54,7 +56,8 @@ const rawSubcategoryMap = {
         "Auto",
         "Flights",
         "Train",
-        "Bus"
+        "Bus",
+        "Others"
     ],
 
     Bills: [
@@ -65,7 +68,8 @@ const rawSubcategoryMap = {
         "Gas",
         "Rent",
         "Charges",
-        "Credit Card"
+        "Credit Card",
+        "Others"
     ],
 
     Investment: [
@@ -73,7 +77,8 @@ const rawSubcategoryMap = {
         "Stocks",
         "PPF",
         "FD",
-        "NPS"
+        "NPS",
+        "Others"
     ],
 
     Transfer: [
@@ -82,7 +87,8 @@ const rawSubcategoryMap = {
         "IDFC to Axis",
         "HDFC to Axis",
         "IDFC to HDFC",
-        "HDFC to IDFC"
+        "HDFC to IDFC",
+        "Others"
     ],
 
     Income: [
@@ -91,7 +97,8 @@ const rawSubcategoryMap = {
         "Bank Interest",
         "Reimbursement",
         "Redemption",
-        "Dividend"
+        "Dividend",
+        "Others"
     ],
     Entertainment:[
       "Tourism",
@@ -100,8 +107,9 @@ const rawSubcategoryMap = {
     ],
 
     Others: [
-        "Misc",
-        "Cash"
+        "Cash",
+        "Charity",
+        "Others"
     ]
 };
 

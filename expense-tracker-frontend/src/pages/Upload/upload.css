@@ -1,0 +1,173 @@
+.upload-container {
+    @apply p-5 min-h-screen;
+}
+
+/* Title */
+.page-title {
+    @apply text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    @apply text-sm text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2;
+}
+
+.separator {
+    @apply text-gray-400;
+}
+
+.breadcrumb .active {
+    @apply text-gray-800 dark:text-gray-200 font-medium;
+}
+
+/* Card */
+.card {
+    @apply bg-white dark:bg-gray-800
+    border border-gray-200 dark:border-gray-700
+    rounded-xl p-5 mb-5 shadow-sm;
+}
+
+/* Label */
+.label {
+    @apply font-semibold mb-2 block text-gray-800 dark:text-gray-200;
+}
+
+.required {
+    @apply text-red-500 ml-1;
+}
+
+/* Bank selector */
+.bank-selector {
+    @apply mb-6;
+}
+
+.bank-options {
+    @apply flex gap-3 mt-2;
+}
+
+.bank-option {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg
+    border border-gray-300 dark:border-gray-600
+    cursor-pointer transition
+    bg-white dark:bg-gray-900;
+}
+
+.bank-option img {
+    @apply w-5 h-5;
+}
+
+.bank-option:hover {
+    @apply border-blue-500;
+}
+
+.bank-option.active {
+    @apply border-blue-500 bg-blue-50 dark:bg-blue-900/30;
+}
+
+/* Dropzone */
+.dropzone {
+    @apply border-2 border-dashed
+    border-gray-300 dark:border-gray-600
+    rounded-xl p-10 text-center
+    transition-all duration-200
+    bg-gray-50 dark:bg-gray-900;
+}
+
+.dropzone:hover {
+    @apply border-blue-500 bg-blue-50 dark:bg-blue-900/20;
+}
+
+.upload-icon {
+    @apply flex justify-center mb-3 text-blue-500;
+}
+
+.main-text {
+    @apply font-semibold text-gray-800 dark:text-gray-200;
+}
+
+.sub-text {
+    @apply text-gray-500 dark:text-gray-400 mb-3;
+}
+
+.browse-btn {
+    @apply inline-block px-4 py-2 rounded-md
+    bg-blue-600 text-white
+    hover:bg-blue-700 cursor-pointer;
+}
+
+.formats {
+    @apply text-xs text-gray-500 dark:text-gray-400 mt-2;
+}
+
+/* File preview */
+.file-preview {
+    @apply flex items-center justify-between
+    border border-gray-200 dark:border-gray-700
+    rounded-lg px-3 py-2 mt-4;
+}
+
+.file-left {
+    @apply flex items-center gap-2 text-sm
+    text-gray-700 dark:text-gray-300;
+}
+
+.remove-btn {
+    @apply text-gray-500 hover:text-red-500;
+}
+
+/* Upload button */
+.upload-btn {
+    @apply mt-4 px-5 py-2 rounded-md
+    bg-blue-600 text-white
+    hover:bg-blue-700 disabled:opacity-50;
+}
+
+/* Progress */
+.progress-card {
+    @apply mt-4 p-3 rounded-lg
+    border border-gray-200 dark:border-gray-700;
+}
+
+.file-info {
+    @apply flex justify-between text-sm text-gray-700 dark:text-gray-300;
+}
+
+.progress-bar {
+    @apply h-2 mt-2 rounded bg-gray-200 dark:bg-gray-700;
+}
+
+.progress-fill {
+    @apply h-full rounded bg-blue-600;
+}
+
+/* Table */
+.history-table {
+    @apply w-full border-collapse;
+}
+
+.history-table th {
+    @apply text-left p-3 text-sm
+    text-gray-500 dark:text-gray-400;
+}
+
+.history-table td {
+    @apply p-3 border-t
+    border-gray-200 dark:border-gray-700
+    text-gray-800 dark:text-gray-200;
+}
+
+.bank-cell {
+    @apply flex items-center gap-2;
+}
+
+.bank-cell img {
+    @apply w-5 h-5;
+}
+
+.success {
+    @apply text-green-500 font-medium;
+}
+
+.upload-history-title {
+    font-weight: 700; /* bold */
+}

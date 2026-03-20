@@ -1,34 +1,44 @@
 import os
 import warnings
-# Suppress the specific openpyxl style warning
-warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 import importlib
-from tqdm import tqdm
-from engine_context import EngineContext
 from datetime import datetime
+from tqdm import tqdm
 
+from engine_context import EngineContext
 from repositories.transaction_repo import insert_transaction
-from repositories.merchant_rule_repo import load_rules, load_merchant_patterns
-from services.categorization_service import categorize_transaction
-from repositories.merchant_rule_repo import load_aliases
-from repositories.merchant_rule_repo import load_family_alias
-from services.categorization_service import derive_payment_method
+from repositories.merchant_rule_repo import (
+    load_rules,
+    load_merchant_patterns,
+    load_aliases,
+    load_family_alias
+)
+from services.categorization_service import (
+    categorize_transaction,
+    derive_payment_method
+)
 
-BASE_FOLDER = "statements"
 
+# Suppress openpyxl warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
+
+# ==============================
+# CONFIG
+# ==============================
 PARSER_MAP = {
     "axis": "parsers.axis_parser",
     "hdfc": "parsers.hdfc_parser",
     "idfc": "parsers.idfc_parser"
 }
 
+# ==============================
+# HELPERS (UNCHANGED LOGIC)
+# ==============================
 def normalize_date(date_str):
-
     formats = [
-        "%Y-%m-%d",   # already normalized
-        "%d-%m-%Y",   # Axis
-        "%d/%m/%y",   # HDFC
-        "%d-%b-%Y"    # IDFC
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d/%m/%y",
+        "%d-%b-%Y"
     ]
 
     for fmt in formats:
@@ -39,14 +49,13 @@ def normalize_date(date_str):
 
     raise ValueError(f"Unknown date format: {date_str}")
 
-def process_records(records, ctx):
 
+def process_records(records, ctx):
     for r in tqdm(records, colour="green"):
 
-        # 🔥 enforce normalization
         try:
             normalized_date = normalize_date(r["date"])
-        except Exception as e:
+        except Exception:
             print(f"Skipping invalid date: {r['date']}")
             continue
 
@@ -69,58 +78,97 @@ def process_records(records, ctx):
         ))
 
 
-def process_bank(bank_folder, module_name, ctx):
-
-    parser = importlib.import_module(module_name)
-
-    folder_path = os.path.join(BASE_FOLDER, bank_folder)
-
-    for file in os.listdir(folder_path):
-
-        if file.endswith((".xls", ".xlsx", ".csv")):
-
-            full_path = os.path.join(folder_path, file)
-
-            records = parser.parse(full_path)
-
-            process_records(records, ctx)
-
-def run_ingestion():
-    # Load once
+# ==============================
+# CORE ENGINE (NEW)
+# ==============================
+def create_context():
     rules = load_rules()
     patterns = load_merchant_patterns()
     aliases = load_aliases()
     family_alias = load_family_alias()
 
-    ctx = EngineContext(rules, patterns, aliases, family_alias)
+    return EngineContext(rules, patterns, aliases, family_alias)
+
+
+# def ingest_file(file_path, bank):
+#     """
+#     Main function to ingest a single uploaded file
+#     """
+#     print(f"Processing file: {file_path}, bank: {bank}")
+#     ctx = create_context()
+#
+#     if bank not in PARSER_MAP:
+#         raise ValueError(f"Unsupported bank: {bank}")
+#
+#     parser_module = importlib.import_module(PARSER_MAP[bank])
+#
+#     records = parser_module.parse(file_path)
+#
+#     process_records(records, ctx)
+
+def ingest_file(file_path, bank):
+
+    ctx = create_context()
+
+    if bank not in PARSER_MAP:
+        raise ValueError(f"Unsupported bank: {bank}")
+
+    parser_module = importlib.import_module(PARSER_MAP[bank])
+    records = parser_module.parse(file_path)
+
+    inserted_count = 0
+
+    for r in records:
+        try:
+            normalized_date = normalize_date(r["date"])
+        except Exception:
+            continue
+
+        merchant, tx_type, category, sub_category = categorize_transaction(
+            r["description"],
+            normalized_date,
+            ctx
+        )
+
+        inserted = insert_transaction((
+            normalized_date,
+            float(r["amount"]),
+            r["description"],
+            r["bank"],  # comes from parser
+            derive_payment_method(r["description"]),
+            merchant,
+            tx_type,
+            category,
+            sub_category
+        ))
+
+        if inserted:
+            inserted_count += 1
+
+    return inserted_count
+
+# ==============================
+# OPTIONAL (OLD BEHAVIOR)
+# ==============================
+def ingest_folder(base_folder="statements"):
+    ctx = create_context()
 
     for bank, module in PARSER_MAP.items():
-        process_bank(bank, module, ctx)
+        folder_path = os.path.join(base_folder, bank)
 
-def run_ingestion_file(file_path):
+        if not os.path.exists(folder_path):
+            continue
 
-    rules = load_rules()
-    patterns = load_merchant_patterns()
-    aliases = load_aliases()
-    family_alias = load_family_alias()
+        parser = importlib.import_module(module)
 
-    ctx = EngineContext(rules, patterns, aliases, family_alias)
+        for file in os.listdir(folder_path):
+            if file.endswith((".xls", ".xlsx", ".csv")):
+                full_path = os.path.join(folder_path, file)
+                records = parser.parse(full_path)
+                process_records(records, ctx)
 
-    # Detect bank type from filename or input
-    if "axis" in file_path.lower():
-        module = "parsers.axis_parser"
-    elif "hdfc" in file_path.lower():
-        module = "parsers.hdfc_parser"
-    elif "idfc" in file_path.lower():
-        module = "parsers.idfc_parser"
-    else:
-        raise ValueError("Unknown bank format")
-
-    parser = importlib.import_module(module)
-
-    records = parser.parse(file_path)
-
-    process_records(records, ctx)
-
+# ==============================
+# LOCAL RUN (OPTIONAL)
+# ==============================
 if __name__ == "__main__":
-    run_ingestion()
+    ingest_folder()
