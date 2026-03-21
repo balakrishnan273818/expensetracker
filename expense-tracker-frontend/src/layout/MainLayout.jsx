@@ -8,7 +8,7 @@ export default function MainLayout() {
 
     return (
 
-        <div className="flex w-full min-h-screen bg-gray-100 dark:bg-gray-900">
+        <div className="flex w-full min-h-screen bg-gray-100 dark:bg-gray-950">
 
             <Navbar />
 
@@ -16,7 +16,7 @@ export default function MainLayout() {
 
                 {/* Scroll container */}
 
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-6 transition-colors duration-200">
 
                     <AnimatePresence mode="wait">
 

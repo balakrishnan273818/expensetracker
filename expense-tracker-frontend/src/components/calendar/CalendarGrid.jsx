@@ -111,7 +111,7 @@ export default function CalendarGrid({
                     <div
                         key={index}
                         onClick={() => handleDayClick(day)} // ✅ NEW
-                        className="cursor-pointer bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg h-28 p-2 flex flex-col justify-between hover:shadow-md transition"
+                        className="cursor-pointer bg-white dark:bg-[#1f2937] border border-gray-300 dark:border-gray-700 rounded-lg h-28 p-2 flex flex-col justify-between shadow-sm hover:shadow-md transition"
                     >
                         {day && (
                             <>
@@ -149,6 +149,9 @@ export default function CalendarGrid({
                                     )}
 
                                 </div>
+
+
+
                             </>
                         )}
                     </div>
