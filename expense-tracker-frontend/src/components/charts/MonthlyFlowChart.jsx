@@ -10,51 +10,49 @@ import {
 import { formatCurrency } from "../../utils/currency";
 
 export default function MonthlyFlowChart({ data = [] }) {
+
+    if (!data || data.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full text-sm text-gray-400">
+                No data
+            </div>
+        );
+    }
+
     return (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 h-[350px]">
+        <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
 
-            <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-                Monthly Cash Flow
-            </h2>
+                <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" opacity={0.2} />
 
-            <ResponsiveContainer width="100%" height="85%">
-                <BarChart data={data}>
+                <XAxis
+                    dataKey="month"
+                    tick={{ fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                />
 
-                    <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" opacity={0.2} />
+                <YAxis
+                    tick={{ fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                />
 
-                    <XAxis
-                        dataKey="month"
-                        tick={{ fill: "#9ca3af" }}
-                        axisLine={false}
-                        tickLine={false}
-                    />
+                <Tooltip
+                    formatter={(value, name) => [
+                        formatCurrency(Number(value)),
+                        name === "income" ? "Income" :
+                            name === "expense" ? "Expense" :
+                                "Investment"
+                    ]}
+                    cursor={{ fill: "rgba(156,163,175,0.1)" }}
+                />
 
-                    <YAxis
-                        tick={{ fill: "#9ca3af" }}
-                        axisLine={false}
-                        tickLine={false}
-                    />
+                <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="investment" fill="#3b82f6" radius={[4, 4, 0, 0]} />
 
-                    <Tooltip
-                        formatter={(value, name) => [
-                            formatCurrency(Number(value).toFixed(2)),
-                            name === "income" ? "Income" : "Expense"
-                        ]}
-                        contentStyle={{
-                            backgroundColor: "var(--tooltip-bg)",
-                            border: "none",
-                            borderRadius: "8px",
-                            color: "var(--tooltip-text)"
-                        }}
-                        cursor={{ fill: "rgba(156,163,175,0.1)" }}
-                    />
-
-                    <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
-
-                </BarChart>
-            </ResponsiveContainer>
-
-        </div>
+            </BarChart>
+        </ResponsiveContainer>
     );
 }

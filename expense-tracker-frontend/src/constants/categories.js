@@ -5,7 +5,7 @@ export const categoryOptions = [
     "Shopping",
     "Travel",
     "Bills",
-    "Investment",
+    "Investments",
     "Transfer",
     "Income",
     "Others",
@@ -72,12 +72,14 @@ const rawSubcategoryMap = {
         "Others"
     ],
 
-    Investment: [
+    Investments: [
         "Mutual Funds",
         "Stocks",
         "PPF",
         "FD",
         "NPS",
+        "Gold Chit",
+        "Chit Fund",
         "Others"
     ],
 

@@ -1,138 +1,247 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
+// UI Components
 import StatCard from "../../components/cards/StatCard";
 import ChartCard from "../../components/cards/ChartCard";
 import TransactionsTable from "../../components/tables/TransactionsTable.jsx";
 import TransactionDrawer from "../../components/drawer/TransactionDrawer";
-import CategoryBreakdownCard from "../../components/cards/CategoryBreakdownCard";
 
+// Charts
 import ExpensePieChart from "../../components/charts/ExpensePieChart";
-import MonthlyFlowChart from "../../components/charts/MonthlyFlowChart";
+import InvestmentPieChart from "../../components/charts/InvestmentPieChart";
+import ExpectedExpensesBarChart from "../../components/charts/ExpectedExpensesBarChart";
+import OutflowBarChart from "../../components/charts/OutflowBarChart";
+import FocusCategoryTreemap from "../../components/charts/FocusCategoryTreemap";
 
-import { Wallet, TrendingDown, PiggyBank, Landmark } from "lucide-react";
+// Icons
+import {
+    Wallet,
+    TrendingDown,
+    PiggyBank,
+    Landmark,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
+
+// Utils & Hooks
 import { formatCurrency } from "../../utils/currency";
-
 import useTransactions from "../../hooks/useTransactions";
-import PageHeader from "../../layout/PageHeader";
-
+import { useMonth } from "../../context/MonthContext";
+import { subcategoryMap } from "../../constants/categories";
 
 export default function Dashboard() {
-
     const { transactions } = useTransactions();
+    const { year, month, setMonth, setYear } = useMonth();
 
     const [selectedTx, setSelectedTx] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
 
-    const income = transactions
-        .filter((t) => t.type === "income")
+    const isInvestment = (tx) =>
+        (tx.category?.toLowerCase() || "") === "investments";
+
+    const groupByCategory = (list) => {
+        const map = {};
+        list.forEach((tx) => {
+            if (!map[tx.category]) map[tx.category] = 0;
+            map[tx.category] += Math.abs(tx.amount);
+        });
+        return Object.entries(map).map(([name, value]) => ({ name, value }));
+    };
+
+    const groupBySubcategory = (list) => {
+        const map = {};
+        list.forEach((tx) => {
+            const key = tx.sub_category || "Others";
+            if (!map[key]) map[key] = 0;
+            map[key] += Math.abs(tx.amount);
+        });
+        return Object.entries(map).map(([name, value]) => ({ name, value }));
+    };
+
+    function prevMonth() {
+        if (month === 0) {
+            setMonth(11);
+            setYear(year - 1);
+        } else {
+            setMonth(month - 1);
+        }
+    }
+
+    function nextMonth() {
+        if (month === 11) {
+            setMonth(0);
+            setYear(year + 1);
+        } else {
+            setMonth(month + 1);
+        }
+    }
+
+    const filteredTx = useMemo(() => {
+        return transactions.filter((tx) => {
+            const d = new Date(tx.date);
+            return d.getMonth() === month && d.getFullYear() === year;
+        });
+    }, [transactions, month, year]);
+
+    const income = filteredTx
+        .filter((t) => t.type?.toLowerCase() === "income")
         .reduce((sum, t) => sum + t.amount, 0);
 
-    const expenses = transactions
-        .filter((t) => t.type === "expense")
+    const investments = filteredTx
+        .filter(isInvestment)
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    const investments = transactions
-        .filter((t) => t.type === "investment")
+    const expenses = filteredTx
+        .filter(
+            (t) =>
+                t.type?.toLowerCase() === "expense" &&
+                !isInvestment(t)
+        )
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     const balance = income - expenses - investments;
 
-    const categoryMap = {};
+    const expenseTx = filteredTx.filter(
+        (t) => t.type?.toLowerCase() === "expense" && !isInvestment(t)
+    );
 
-    transactions
-        .filter((t) => t.type === "expense")
-        .forEach((tx) => {
-            if (!categoryMap[tx.category]) categoryMap[tx.category] = 0;
-            categoryMap[tx.category] += Math.abs(tx.amount);
-        });
+    const investmentTx = filteredTx.filter(isInvestment);
 
-    const categorySpending = Object.entries(categoryMap).map(([category, amount]) => ({
-        category,
-        amount
-    }));
+    const expectedSubcategories = new Set(
+        [...subcategoryMap["Bills"], ...subcategoryMap["Allowances"]].map((s) =>
+            s.toLowerCase()
+        )
+    );
 
-    const expensePieData = categorySpending.map((c) => ({
-        name: c.category,
-        value: c.amount
-    }));
+    const expectedMap = {};
 
-    const monthlyFlow = {};
-
-    transactions.forEach((tx) => {
-        const date = new Date(tx.date);
-        const month = date.toLocaleString("default", { month: "short" });
-
-        if (!monthlyFlow[month]) {
-            monthlyFlow[month] = { month, income: 0, expense: 0 };
+    expenseTx.forEach((tx) => {
+        const sub = tx.sub_category?.toLowerCase() || "";
+        if (expectedSubcategories.has(sub)) {
+            if (!expectedMap[tx.sub_category]) expectedMap[tx.sub_category] = 0;
+            expectedMap[tx.sub_category] += Math.abs(tx.amount);
         }
-
-        if (tx.type === "income") monthlyFlow[month].income += tx.amount;
-        if (tx.type === "expense") monthlyFlow[month].expense += Math.abs(tx.amount);
     });
 
-    const monthlyFlowData = Object.values(monthlyFlow);
+    const expectedData = Object.entries(expectedMap).map(([name, value]) => ({
+        name,
+        value,
+    }));
+
+    const totalExpected = expectedData.reduce((sum, d) => sum + d.value, 0);
+
+    const investVsExpense = [
+        { name: "Investment", value: investments },
+        { name: "Expense", value: expenses },
+    ];
+
+    const outflowData = groupByCategory(expenseTx);
+    const totalOutflow = outflowData.reduce((sum, d) => sum + d.value, 0);
+
+    const investmentData = groupBySubcategory(investmentTx).sort(
+        (a, b) => b.value - a.value
+    );
+
+    const focusCategories = [
+        "Food",
+        "Travel",
+        "Groceries",
+        "Shopping",
+        "Entertainment",
+    ];
+
+    const focusData = groupBySubcategory(
+        expenseTx.filter((t) =>
+            focusCategories
+                .map((c) => c.toLowerCase())
+                .includes((t.category || "").toLowerCase())
+        )
+    ).sort((a, b) => b.value - a.value);
+
+    const totalFocus = focusData.reduce((sum, d) => sum + d.value, 0);
+
+    const monthLabel = new Date(year, month).toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+    });
 
     return (
-        <div className="space-y-8 w-full">
+        <div className="space-y-6 w-full">
 
-            {/*<h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">*/}
-            {/*    Dashboard*/}
-            {/*</h1>*/}
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b pb-3">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-xl font-semibold">Dashboard</h1>
+                        <p className="text-sm text-gray-500">
+                            Overview of your financial activity
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
 
-            <PageHeader
-                title="Dashboard"
-                subtitle="Overview of your financial activity"
-            />
+                        <button
+                            onClick={prevMonth}
+                            className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                            <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                        </button>
 
+                        <span className="font-medium text-gray-800 dark:text-gray-100">
+                        {monthLabel}
+                    </span>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <button
+                            onClick={nextMonth}
+                            className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+                        </button>
 
-                <StatCard
-                    title="Total Income"
-                    value={formatCurrency(income)}
-                    icon={Landmark}
-                    positive
-                />
+                    </div>
 
-                <StatCard
-                    title="Total Expenses"
-                    value={formatCurrency(expenses)}
-                    icon={TrendingDown}
-                    positive={false}
-                />
-
-                <StatCard
-                    title="Investments"
-                    value={formatCurrency(investments)}
-                    icon={PiggyBank}
-                />
-
-                <StatCard
-                    title="Balance"
-                    value={formatCurrency(balance)}
-                    icon={Wallet}
-                />
-
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                <div className="lg:col-span-2">
-                    <ChartCard title="Monthly Cash Flow">
-                        <MonthlyFlowChart data={monthlyFlowData} />
-                    </ChartCard>
                 </div>
-
-                <CategoryBreakdownCard data={categorySpending} />
-
             </div>
 
-            <ChartCard title="Expense Distribution">
-                <ExpensePieChart data={expensePieData} />
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard title="Total Income" value={formatCurrency(income)} icon={Landmark} variant="income" />
+                <StatCard title="Total Expenses" value={formatCurrency(expenses)} icon={TrendingDown} variant="expense" />
+                <StatCard title="Investments" value={formatCurrency(investments)} icon={PiggyBank} variant="investment" />
+                <StatCard title="Balance" value={formatCurrency(balance)} icon={Wallet} variant="balance" />
+            </div>
+
+            {/* Row 1 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ChartCard title="Investment vs Expense">
+                    <ExpensePieChart data={investVsExpense} semi />
+                </ChartCard>
+
+                <ChartCard title="Outflow Distribution">
+                    <OutflowBarChart data={outflowData} />
+                </ChartCard>
+            </div>
+
+            {/* Row 2 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ChartCard title="Investment Distribution">
+                    <InvestmentPieChart data={investmentData} />
+                </ChartCard>
+
+                <ChartCard title="Expected Expenses">
+                    <ExpectedExpensesBarChart data={expectedData} />
+                </ChartCard>
+            </div>
+
+            {/* Row 3 */}
+            <ChartCard title="Key Spending Categories">
+                <div className="h-[300px]">
+                    <FocusCategoryTreemap data={focusData} />
+                </div>
             </ChartCard>
 
+            {/* Transactions */}
             <TransactionsTable
-                transactions={transactions.slice(0, 10)}
+                transactions={filteredTx.slice(0, 10)}
                 onSelect={(tx) => {
                     setSelectedTx(tx);
                     setDrawerOpen(true);
@@ -144,7 +253,6 @@ export default function Dashboard() {
                 transaction={selectedTx}
                 onClose={() => setDrawerOpen(false)}
             />
-
         </div>
     );
 }

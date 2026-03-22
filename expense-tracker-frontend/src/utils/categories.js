@@ -52,6 +52,7 @@ const rawCategoryMap = {
     }
 };
 
+
 /**
  * Normalize category string from DB/UI/LLM
  */
