@@ -2,16 +2,14 @@ import { useState } from "react";
 import DailySummaryTable from "../../components/tables/DailySummaryTable";
 import { formatCurrency } from "../../utils/currency";
 import useTransactions from "../../hooks/useTransactions";
-import { formatDate } from "../../utils/date";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMonth } from "../../context/MonthContext";
-
-
 
 export default function DailySummary() {
 
     const { transactions, loading } = useTransactions();
     const { year, month, setYear, setMonth } = useMonth();
+
     const monthNames = [
         "January","February","March","April","May","June",
         "July","August","September","October","November","December"
@@ -59,6 +57,7 @@ export default function DailySummary() {
 
         <div className="space-y-6 w-full">
 
+            {/* Header */}
             <div className="flex justify-between items-center">
 
                 <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
@@ -86,22 +85,25 @@ export default function DailySummary() {
                     </button>
 
                 </div>
-
             </div>
 
+            {/* Loading */}
             {loading && (
                 <div className="text-gray-500">Loading data...</div>
             )}
 
+            {/* Content */}
             {!loading && (
 
                 <>
+                    {/* IMPORTANT: Icons should be handled inside this table */}
                     <DailySummaryTable
                         year={year}
                         month={month}
                         transactions={transactions}
                     />
 
+                    {/* Metrics */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5">

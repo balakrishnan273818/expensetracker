@@ -1,5 +1,6 @@
 import { formatCurrency } from "../../utils/currency";
 import { formatDate } from "../../utils/date";
+import { getCategoryMeta } from "../../utils/categories";
 
 export default function DailySummaryTable({ year, month, transactions = [] }) {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -27,13 +28,8 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
     filtered.forEach((tx) => {
         const day = new Date(tx.date).getDate();
 
-        if (!data[day]) {
-            data[day] = {};
-        }
-
-        if (!data[day][tx.category]) {
-            data[day][tx.category] = 0;
-        }
+        if (!data[day]) data[day] = {};
+        if (!data[day][tx.category]) data[day][tx.category] = 0;
 
         data[day][tx.category] += Math.abs(tx.amount);
     });
@@ -62,16 +58,35 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
 
             <table className="w-full text-sm">
 
+                {/* HEADER */}
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b text-gray-600 dark:text-gray-200 sticky top-0 z-10">
                 <tr>
 
                     <th className="px-3 py-2 text-left">Date</th>
 
-                    {categories.map((c) => (
-                        <th key={c} className="px-3 py-2 text-left">
-                            {c}
-                        </th>
-                    ))}
+                    {categories.map((c) => {
+                        const meta = getCategoryMeta(c);
+                        const Icon = meta.icon;
+
+                        return (
+                            <th key={c} className="px-3 py-2 text-left">
+                                <div className="flex items-center gap-1.5 whitespace-nowrap">
+
+                                    {/* Icon */}
+                                    <Icon
+                                        size={14}
+                                        style={{ color: meta.color }}
+                                    />
+
+                                    {/* Label */}
+                                    <span className="text-xs font-medium">
+                                        {meta.label}
+                                    </span>
+
+                                </div>
+                            </th>
+                        );
+                    })}
 
                     <th className="px-3 py-2 text-right bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 font-semibold">
                         Day Total
@@ -80,6 +95,7 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
                 </tr>
                 </thead>
 
+                {/* BODY */}
                 <tbody>
 
                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
@@ -116,6 +132,7 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
                     );
                 })}
 
+                {/* FOOTER */}
                 <tr className="bg-purple-100 dark:bg-purple-900/40 font-semibold">
 
                     <td className="px-3 py-2 text-purple-800 dark:text-purple-300">

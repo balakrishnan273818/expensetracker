@@ -69,6 +69,7 @@ const rawSubcategoryMap = {
         "Rent",
         "Charges",
         "Credit Card",
+        "Insurance",
         "Others"
     ],
 
