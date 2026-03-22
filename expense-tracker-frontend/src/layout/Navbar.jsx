@@ -8,7 +8,8 @@ import {
     BarChart3,
     Wallet,
     Receipt,
-    UploadCloud
+    UploadCloud,
+    Landmark // ✅ NEW
 } from "lucide-react";
 
 export default function Navbar() {
@@ -36,7 +37,8 @@ export default function Navbar() {
 
                 <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
 
-                    <Wallet size={20} className="text-blue-600" />
+                    {/* ✅ UPDATED ICON */}
+                    <Landmark size={20} className="text-blue-600" />
 
                     Expense Tracker
 
@@ -79,6 +81,7 @@ export default function Navbar() {
                     <Receipt size={18} />
                     Transactions
                 </NavLink>
+
                 <NavLink to="/upload" className={navClass}>
                     <UploadCloud size={18} />
                     Upload

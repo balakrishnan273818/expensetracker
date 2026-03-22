@@ -1,251 +1,219 @@
 import { useMemo } from "react";
 import useTransactions from "../../hooks/useTransactions";
-import StatCard from "../../components/cards/StatCard";
+import useBudget from "../../hooks/useBudget";
 import ChartCard from "../../components/cards/ChartCard";
 import CategoryBreakdownCard from "../../components/cards/CategoryBreakdownCard";
-import MonthlyFlowChart from "../../components/charts/MonthlyFlowChart";
-import ExpensePieChart from "../../components/charts/ExpensePieChart";
-import { Wallet, TrendingDown, PiggyBank, Landmark } from "lucide-react";
-import { formatCurrency } from "../../utils/currency";
+import PageHeader from "../../components/common/PageHeader";
+import { useMonth } from "../../context/MonthContext";
 
 export default function OverallSummary() {
 
     const { transactions, loading } = useTransactions();
 
-    function normalizeCategory(tx) {
+    const { year, month, setYear, setMonth } = useMonth();
+    const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-        let category =
-            tx.category ||
-            tx.subcategory ||
-            tx.sub_category ||
-            "Others";
-
-        category = String(category).trim().toLowerCase();
-
-        // normalize common variants
-        if (!category || category === "null" || category === "undefined") {
-            return "Others";
-        }
-
-        if (category.includes("other")) return "Others";
-        if (category.includes("bill")) return "Bills";
-        if (category.includes("food") || category.includes("dining")) return "Food";
-        if (category.includes("travel")) return "Travel";
-        if (category.includes("shop")) return "Shopping";
-        if (category.includes("invest")) return "Investments";
-
-        // capitalize first letter
-        return category.charAt(0).toUpperCase() + category.slice(1);
-    }
+    const { budgets } = useBudget(monthStr);
 
     const {
-        income,
-        expenses,
-        investments,
-        balance,
-        categorySpending,
-        expensePieData,
-        monthlyFlowData,
+        budgetVsActual,
+        savingsRate,
+        commitmentRatio,
+        overdraft
     } = useMemo(() => {
 
-        // ✅ CLEAN + VALIDATE DATA FIRST
-        const validTx = transactions.filter(tx =>
-            tx &&
-            tx.date &&
-            !isNaN(new Date(tx.date)) &&
-            typeof tx.amount === "number"
-        );
+        function normalizeCategory(tx) {
+            let category =
+                tx.category ||
+                tx.subcategory ||
+                tx.sub_category ||
+                "Others";
+
+            category = String(category).trim().toLowerCase();
+
+            if (!category || category === "null" || category === "undefined") {
+                return "Others";
+            }
+
+            if (category.includes("other")) return "Others";
+            if (category.includes("bill")) return "Bills";
+            if (category.includes("food") || category.includes("dining")) return "Food";
+            if (category.includes("travel")) return "Travel";
+            if (category.includes("shop")) return "Shopping";
+            if (category.includes("invest")) return "Investments";
+
+            return category.charAt(0).toUpperCase() + category.slice(1);
+        }
+
+        // ✅ Month-safe filtering
+        const validTx = transactions.filter(tx => {
+            if (!tx || !tx.date || typeof tx.amount !== "number") return false;
+            return tx.date.slice(0, 7) === monthStr;
+        });
+
+        const categoryMap = {};
 
         let income = 0;
         let expenses = 0;
         let investments = 0;
 
-        const categoryMap = {};
-
         validTx.forEach(tx => {
-
             const type = (tx.type || "").toLowerCase();
             const amount = Math.abs(tx.amount);
 
-            const category = normalizeCategory(tx);
+            const normalized = normalizeCategory(tx);
 
-            // detect investment
-            const isInvestment =
-                type === "investment" || category === "Investments";
-
-            if (type === "expense" || isInvestment) {
-
-                const finalCategory = isInvestment ? "Investments" : category;
-
-                if (!categoryMap[finalCategory]) {
-                    categoryMap[finalCategory] = 0;
-                }
-
-                categoryMap[finalCategory] += amount;
-            }
-
-        });
-
-        const monthlyMap = {};
-
-        validTx.forEach(tx => {
-
-            const type = (tx.type || "").toLowerCase();
-            const category = (tx.category || "").toLowerCase();
-            const subcategory = (tx.subcategory || tx.sub_category || "").toLowerCase();
-            const amount = Math.abs(tx.amount);
-
-            // ✅ detect investment robustly
             const isInvestment =
                 type === "investment" ||
-                category.includes("invest") ||
-                subcategory.includes("invest");
+                normalized === "Investments";
 
-            const date = new Date(tx.date);
-            const year = date.getFullYear();
-            const month = date.getMonth();
-
-            const key = `${year}-${month}`;
-            const label = date.toLocaleString("default", {
-                month: "short",
-                year: "2-digit"
-            });
-
-            if (!monthlyMap[key]) {
-                monthlyMap[key] = {
-                    month: label,
-                    income: 0,
-                    expense: 0
-                };
-            }
-
-            // ✅ TYPE HANDLING
             if (type === "income") {
                 income += amount;
-                monthlyMap[key].income += amount;
             }
-
             else if (isInvestment) {
                 investments += amount;
-
-                // treat as expense in trend
-                monthlyMap[key].expense += amount;
 
                 if (!categoryMap["Investments"]) categoryMap["Investments"] = 0;
                 categoryMap["Investments"] += amount;
             }
-
             else if (type === "expense") {
                 expenses += amount;
-                monthlyMap[key].expense += amount;
 
-                if (!categoryMap[tx.category || "Others"]) {
-                    categoryMap[tx.category || "Others"] = 0;
-                }
-                categoryMap[tx.category || "Others"] += amount;
+                if (!categoryMap[normalized]) categoryMap[normalized] = 0;
+                categoryMap[normalized] += amount;
             }
-
         });
 
-        const balance = income - expenses - investments;
+        // ✅ Normalize budgets
+        const normalizedBudgetMap = {};
 
-        // ✅ CATEGORY DATA
-        const categorySpending = Object.entries(categoryMap)
-            .reduce((acc, [category, amount]) => {
-                const existing = acc.find(c => c.category === category);
+        Object.entries(budgets || {}).forEach(([key, value]) => {
+            const normalizedKey = normalizeCategory({ category: key });
 
-                if (existing) {
-                    existing.amount += amount;
-                } else {
-                    acc.push({ category, amount });
-                }
+            if (!normalizedBudgetMap[normalizedKey]) {
+                normalizedBudgetMap[normalizedKey] = 0;
+            }
 
-                return acc;
-            }, [])
-            .sort((a, b) => b.amount - a.amount);
+            normalizedBudgetMap[normalizedKey] += value?.amount || 0;
+        });
 
-        // ✅ PIE DATA
-        const expensePieData = categorySpending.map(c => ({
-            name: c.category,
-            value: c.amount
-        }));
+        const allCategories = new Set([
+            ...Object.keys(categoryMap),
+            ...Object.keys(normalizedBudgetMap)
+        ]);
 
-        // ✅ SORT MONTHLY DATA (IMPORTANT FIX)
-        const monthlyFlowData = Object.entries(monthlyMap)
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(entry => entry[1]);
+        const budgetVsActual = Array.from(allCategories)
+            .map(cat => ({
+                category: cat,
+                budget: normalizedBudgetMap[cat] || 0,
+                actual: categoryMap[cat] || 0
+            }))
+            .sort((a, b) => b.actual - a.actual);
+
+        // ✅ KPIs
+        const savingsRate = income > 0 ? (investments / income) * 100 : 0;
+        const commitmentRatio = income > 0 ? (expenses / income) * 100 : 0;
+
+        // 🔥 TRUE overdraft (deficit based)
+        const overdraft = income > 0
+            ? ((expenses + investments - income) / income) * 100
+            : 0;
 
         return {
-            income,
-            expenses,
-            investments,
-            balance,
-            categorySpending,
-            expensePieData,
-            monthlyFlowData
+            budgetVsActual,
+            savingsRate,
+            commitmentRatio,
+            overdraft
         };
 
-    }, [transactions]);
+    }, [transactions, budgets, monthStr]);
 
     if (loading) {
         return <div className="text-gray-500">Loading...</div>;
     }
 
+    // 🔥 Status helper
+    const getStatus = (value, type) => {
+        if (type === "savings") {
+            if (value > 40) return { label: "Healthy", color: "text-green-600" };
+            if (value > 20) return { label: "Moderate", color: "text-yellow-500" };
+            return { label: "Low", color: "text-red-500" };
+        }
+
+        if (type === "commitment") {
+            if (value < 50) return { label: "Healthy", color: "text-green-600" };
+            if (value < 80) return { label: "Risk", color: "text-yellow-500" };
+            return { label: "Critical", color: "text-red-500" };
+        }
+
+        if (type === "overdraft") {
+            if (value <= 0) return { label: "Healthy", color: "text-green-600" };
+            if (value < 20) return { label: "Warning", color: "text-yellow-500" };
+            return { label: "Critical", color: "text-red-500" };
+        }
+    };
+
     return (
         <div className="space-y-8 w-full">
 
-            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-                Overall Summary
-            </h1>
+            {/* Header */}
+            <PageHeader
+                title="Overall Summary"
+                year={year}
+                month={month}
+                setYear={setYear}
+                setMonth={setMonth}
+            />
 
-            {/* ✅ TOP STATS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-                <StatCard
-                    title="Total Income"
-                    value={formatCurrency(income)}
-                    icon={Landmark}
-                    positive
-                />
-
-                <StatCard
-                    title="Total Expenses"
-                    value={formatCurrency(expenses)}
-                    icon={TrendingDown}
-                    positive={false}
-                />
-
-                <StatCard
-                    title="Total Investments"
-                    value={formatCurrency(investments)}
-                    icon={PiggyBank}
-                />
-
-                <StatCard
-                    title="Net Balance"
-                    value={formatCurrency(balance)}
-                    icon={Wallet}
-                />
-
-            </div>
-
-            {/* ✅ CHART + CATEGORY */}
+            {/* Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
+                {/* LEFT */}
                 <div className="lg:col-span-2">
-                    <ChartCard title="Income vs Expense Trend">
-                        <MonthlyFlowChart data={monthlyFlowData} />
+                    <ChartCard title="Budget vs Actual (Top Spending Categories)">
+                        <CategoryBreakdownCard data={budgetVsActual} isBudgetView />
                     </ChartCard>
                 </div>
 
-                <CategoryBreakdownCard data={categorySpending} />
+                {/* RIGHT */}
+                <div className="space-y-4">
+
+                    {/* Savings */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                        <p className="text-sm text-gray-500">Overall Savings Rate</p>
+                        <p className="text-lg font-semibold text-green-600">
+                            {savingsRate.toFixed(2)}%
+                        </p>
+                        <p className={`text-xs ${getStatus(savingsRate, "savings").color}`}>
+                            {getStatus(savingsRate, "savings").label}
+                        </p>
+                    </div>
+
+                    {/* Commitment */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                        <p className="text-sm text-gray-500">Commitment Ratio</p>
+                        <p className="text-lg font-semibold text-yellow-500">
+                            {commitmentRatio.toFixed(2)}%
+                        </p>
+                        <p className={`text-xs ${getStatus(commitmentRatio, "commitment").color}`}>
+                            {getStatus(commitmentRatio, "commitment").label}
+                        </p>
+                    </div>
+
+                    {/* Overdraft */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                        <p className="text-sm text-gray-500">Overdraft</p>
+                        <p className="text-lg font-semibold text-red-500">
+                            {overdraft.toFixed(2)}%
+                        </p>
+                        <p className={`text-xs ${getStatus(overdraft, "overdraft").color}`}>
+                            {getStatus(overdraft, "overdraft").label}
+                        </p>
+                    </div>
+
+                </div>
 
             </div>
-
-            {/* ✅ PIE */}
-            <ChartCard title="Expense Distribution">
-                <ExpensePieChart data={expensePieData} />
-            </ChartCard>
 
         </div>
     );
