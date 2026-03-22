@@ -4,17 +4,19 @@ import {
     ShoppingCart,
     Plane,
     Lightbulb,
-    TrendingUp,
     Wallet,
     Film,
-    ArrowLeftRight
+    ShoppingBag,
+    Package,
+    ArrowLeftRight,
+    HandCoins,
+    Banknote,
+    LineChart,         // ✅ NEW
+    ArrowDownCircle    // ✅ NEW
 } from "lucide-react";
 
 /**
  * Central category configuration
- * - icon: Lucide icon component
- * - color: Tailwind styling for badge/icon background
- * - label: Display label
  */
 const rawCategoryMap = {
     food: {
@@ -31,7 +33,7 @@ const rawCategoryMap = {
 
     shopping: {
         label: "Shopping",
-        icon: ShoppingCart,
+        icon: ShoppingBag,
         color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300"
     },
 
@@ -49,14 +51,20 @@ const rawCategoryMap = {
 
     investments: {
         label: "Investments",
-        icon: TrendingUp,
+        icon: LineChart, // ✅ FIXED
         color: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300"
     },
 
     allowances: {
         label: "Allowances",
-        icon: Wallet,
+        icon: HandCoins,
         color: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300"
+    },
+
+    cash: {
+        label: "Cash",
+        icon: Banknote,
+        color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300"
     },
 
     entertainment: {
@@ -73,7 +81,7 @@ const rawCategoryMap = {
 
     income: {
         label: "Income",
-        icon: TrendingUp,
+        icon: ArrowDownCircle, // ✅ FIXED
         color: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300"
     },
 
@@ -84,16 +92,12 @@ const rawCategoryMap = {
     },
 
     other: {
-        label: "Other",
-        icon: Wallet,
+        label: "Others",
+        icon: Package,
         color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
     }
 };
 
-/**
- * Normalize category string from DB / UI / LLM
- * Ensures consistent key lookup
- */
 export function normalizeCategory(category) {
     if (!category) return "other";
 
@@ -105,16 +109,9 @@ export function normalizeCategory(category) {
         .replace(/\s+/g, "");
 }
 
-/**
- * Safe getter for category metadata
- * Always use this instead of direct map access
- */
 export function getCategoryMeta(category) {
     const key = normalizeCategory(category);
     return rawCategoryMap[key] || rawCategoryMap["other"];
 }
 
-/**
- * Export full map (if needed elsewhere)
- */
 export const categoryMap = rawCategoryMap;
