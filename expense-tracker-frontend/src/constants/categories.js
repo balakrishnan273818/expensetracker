@@ -70,6 +70,7 @@ const rawSubcategoryMap = {
         "Charges",
         "Credit Card",
         "Insurance",
+        "Medical",
         "Others"
     ],
 
@@ -112,6 +113,8 @@ const rawSubcategoryMap = {
     Others: [
         "Cash",
         "Charity",
+        "Self Care",
+        "Education",
         "Others"
     ]
 };
