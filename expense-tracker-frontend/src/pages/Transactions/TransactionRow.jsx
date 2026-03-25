@@ -8,16 +8,28 @@ export default function TransactionRow({
                                            tx,
                                            editMode,
                                            setTransactions,
-                                           setActiveTx
+                                           setActiveTx,
+
+                                           // ✅ NEW props
+                                           isSelected,
+                                           toggleSelect
                                        }) {
-
-
 
     const isExpense = tx.amount < 0;
 
     return (
 
         <tr className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+
+            {/* ✅ Checkbox column */}
+            <td className="px-2 py-4">
+                <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelect(tx.id)}
+                />
+            </td>
 
             <td className="px-4 py-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                 {formatDate(tx.date)}
@@ -40,7 +52,6 @@ export default function TransactionRow({
                     if (!editMode) return;
 
                     const normalizedSub = tx.subcategory ?? tx.sub_category;
-
                     const validSubs = getSubcategories(tx.category);
 
                     const safeSub = validSubs.includes(normalizedSub)

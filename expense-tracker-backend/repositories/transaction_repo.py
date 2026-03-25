@@ -104,28 +104,50 @@ def update_transaction_category(txn_id, category, sub_category, txn_type):
     # learning step
     learn_merchant_rule(txn_id)
 
-def bulk_update_transactions(updates):
+def bulk_update_transactions(ids, updates):
+
+    if not ids:
+        return 0
 
     conn = DB_POOL.getconn()
 
     try:
-
         cur = conn.cursor()
 
-        for item in updates:
+        set_clauses = []
+        values = []
 
-            cur.execute("""
-                UPDATE transactions
-                SET category = %s,
-                    sub_category = %s
-                WHERE id = %s
-            """, (
-                item["category"],
-                item["sub_category"],
-                item["id"]
-            ))
+        # Build dynamic SET clause
+        if "category" in updates:
+            set_clauses.append("category = %s")
+            values.append(updates["category"])
 
+        if "sub_category" in updates:
+            set_clauses.append("sub_category = %s")
+            values.append(updates["sub_category"])
+
+        if "type" in updates:
+            set_clauses.append("type = %s")
+            values.append(updates["type"])
+
+        if not set_clauses:
+            return 0
+
+        set_query = ", ".join(set_clauses)
+
+        # PostgreSQL syntax (you are using psycopg2)
+        query = f"""
+            UPDATE transactions
+            SET {set_query}
+            WHERE id = ANY(%s)
+        """
+
+        values.append(list(ids))
+
+        cur.execute(query, values)
         conn.commit()
+
+        updated_count = cur.rowcount
 
         cur.close()
 
@@ -135,6 +157,12 @@ def bulk_update_transactions(updates):
 
     finally:
         DB_POOL.putconn(conn)
+
+    # 🔥 CRITICAL: Learning step (this fixes your original problem)
+    for txn_id in ids:
+        learn_merchant_rule(txn_id)
+
+    return updated_count
 
 
 def insert_transaction(record):

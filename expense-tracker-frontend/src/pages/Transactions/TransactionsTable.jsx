@@ -11,7 +11,12 @@ export default function TransactionsTable({
                                               setActiveTx,
                                               filters,
                                               setFilters,
-                                              isGrouped = false
+                                              isGrouped = false,
+
+                                              // ✅ NEW props
+                                              selectedTxIds,
+                                              toggleSelect,
+                                              selectAll
                                           }) {
 
     const [sortConfig, setSortConfig] = useState({
@@ -91,6 +96,16 @@ export default function TransactionsTable({
         return sortConfig.direction === "asc" ? "↑" : "↓";
     }
 
+    // ✅ NEW: flatten ids for select-all
+    const allTransactionIds = useMemo(() => {
+        if (!isGrouped) return processedData.map(tx => tx.id);
+        return processedData.flatMap(group => group.data.map(tx => tx.id));
+    }, [processedData, isGrouped]);
+
+    const isAllSelected =
+        allTransactionIds.length > 0 &&
+        allTransactionIds.every(id => selectedTxIds.has(id));
+
     return (
         <div className="h-full overflow-y-auto border rounded-xl border-gray-200 dark:border-gray-700">
 
@@ -99,6 +114,19 @@ export default function TransactionsTable({
                 <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 z-10">
 
                 <tr>
+                    {/* ✅ Checkbox header */}
+                    <th className="px-2 py-3">
+                        <input
+                            type="checkbox"
+                            checked={isAllSelected}
+                            onChange={(e) =>
+                                e.target.checked
+                                    ? selectAll(allTransactionIds)
+                                    : selectAll([])
+                            }
+                        />
+                    </th>
+
                     <th className="px-4 py-3 cursor-pointer" onClick={() => handleSort("date")}>
                         Date {getSortIndicator("date")}
                     </th>
@@ -127,6 +155,7 @@ export default function TransactionsTable({
 
                 {/* Filters */}
                 <tr className="bg-gray-100 dark:bg-gray-900 text-xs">
+                    <th></th>
                     <th className="px-2 py-2">
                         <input value={filters.date} onChange={(e)=>setFilters({...filters,date:e.target.value})} className="w-full px-2 py-1 border rounded"/>
                     </th>
@@ -150,6 +179,10 @@ export default function TransactionsTable({
                         editMode={editMode}
                         setTransactions={setTransactions}
                         setActiveTx={setActiveTx}
+
+                        // ✅ NEW
+                        isSelected={selectedTxIds.has(tx.id)}
+                        toggleSelect={toggleSelect}
                     />
                 ))}
 
@@ -160,29 +193,18 @@ export default function TransactionsTable({
                     return (
                         <React.Fragment key={group.label}>
 
-                            {/* ✅ Single clean row header */}
                             <tr
                                 className="bg-gray-200 dark:bg-gray-700 font-semibold cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600"
                                 onClick={() => toggleGroup(group.label)}
                             >
-                                <td colSpan="8" className="px-4 py-2">
+                                <td colSpan="9" className="px-4 py-2">
                                     <div className="flex items-center gap-2">
-
-                                        {isCollapsed ? (
-                                            <ChevronRight size={16} />
-                                        ) : (
-                                            <ChevronDown size={16} />
-                                        )}
-
-                                        <span>
-                                            {group.label} ({group.data.length} transactions)
-                                        </span>
-
+                                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                                        <span>{group.label} ({group.data.length} transactions)</span>
                                     </div>
                                 </td>
                             </tr>
 
-                            {/* ✅ Rows */}
                             {!isCollapsed && group.data.map((tx) => (
                                 <TransactionRow
                                     key={tx.id}
@@ -190,6 +212,10 @@ export default function TransactionsTable({
                                     editMode={editMode}
                                     setTransactions={setTransactions}
                                     setActiveTx={setActiveTx}
+
+                                    // ✅ NEW
+                                    isSelected={selectedTxIds.has(tx.id)}
+                                    toggleSelect={toggleSelect}
                                 />
                             ))}
 

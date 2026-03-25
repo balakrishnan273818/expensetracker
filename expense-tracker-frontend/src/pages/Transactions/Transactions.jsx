@@ -9,7 +9,7 @@ import TransactionsTable from "./TransactionsTable";
 import EditTransactionModal from "./EditTransactionModal";
 import PageHeader from "../../components/common/PageHeader";
 import { useMonth } from "../../context/MonthContext";
-import { useToast } from "../../context/ToastContext"; // adjust if needed
+import { useToast } from "../../context/ToastContext";
 
 export default function Transactions() {
 
@@ -21,6 +21,9 @@ export default function Transactions() {
     const [transactions, setTransactions] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
+
+    // ✅ NEW: selection state
+    const [selectedTxIds, setSelectedTxIds] = useState(new Set());
 
     const [filters, setFilters] = useState(() => ({
         date: searchParams.get("date") || "",
@@ -108,7 +111,24 @@ export default function Transactions() {
 
     }, [filteredTransactions]);
 
-    // ✅ Download XLSX
+    // ✅ NEW: selection helpers
+    function toggleSelect(id) {
+        setSelectedTxIds(prev => {
+            const newSet = new Set(prev);
+            newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+            return newSet;
+        });
+    }
+
+    function selectAll(ids) {
+        setSelectedTxIds(new Set(ids));
+    }
+
+    function clearSelection() {
+        setSelectedTxIds(new Set());
+    }
+
+    // ✅ Download XLSX (unchanged)
     function handleDownload() {
         try {
 
@@ -134,26 +154,16 @@ export default function Transactions() {
 
             const worksheet = XLSX.utils.json_to_sheet(flatData);
 
-            // ✅ Column widths
             worksheet["!cols"] = [
-                { wch: 10 }, // Week
-                { wch: 15 }, // Date
-                { wch: 12 }, // Amount
-                { wch: 10 }, // Type
-                { wch: 20 }, // Category
-                { wch: 20 }, // Subcategory
-                { wch: 15 }, // Mode
-                { wch: 15 }, // Bank
-                { wch: 25 }, // Remarks
-                { wch: 30 }  // Description
+                { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 10 },
+                { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+                { wch: 25 }, { wch: 30 }
             ];
 
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
 
-            const fileName = `transactions_${month + 1}_${year}.xlsx`;
-
-            XLSX.writeFile(workbook, fileName);
+            XLSX.writeFile(workbook, `transactions_${month + 1}_${year}.xlsx`);
 
             showToast("Download completed successfully", "success");
 
@@ -163,33 +173,67 @@ export default function Transactions() {
         }
     }
 
-    // ✅ Update
+    // ✅ UPDATED: supports bulk
     async function saveCategoryUpdate(activeTx) {
         try {
-            await updateTransactionCategory(
-                activeTx.id,
-                activeTx.category,
-                activeTx.subcategory,
-                activeTx.type
-            );
 
-            setTransactions(prev =>
-                prev.map(tx =>
-                    tx.id === activeTx.id
-                        ? {
-                            ...tx,
-                            category: activeTx.category,
-                            subcategory: activeTx.subcategory,
-                            type: activeTx.type
-                        }
-                        : tx
-                )
-            );
+            if (activeTx.bulk) {
+
+                const ids = Array.from(selectedTxIds);
+
+                await Promise.all(
+                    ids.map(id =>
+                        updateTransactionCategory(
+                            id,
+                            activeTx.category,
+                            activeTx.subcategory,
+                            activeTx.type
+                        )
+                    )
+                );
+
+                setTransactions(prev =>
+                    prev.map(tx =>
+                        selectedTxIds.has(tx.id)
+                            ? {
+                                ...tx,
+                                category: activeTx.category,
+                                subcategory: activeTx.subcategory,
+                                type: activeTx.type
+                            }
+                            : tx
+                    )
+                );
+
+                clearSelection();
+
+            } else {
+
+                await updateTransactionCategory(
+                    activeTx.id,
+                    activeTx.category,
+                    activeTx.subcategory,
+                    activeTx.type
+                );
+
+                setTransactions(prev =>
+                    prev.map(tx =>
+                        tx.id === activeTx.id
+                            ? {
+                                ...tx,
+                                category: activeTx.category,
+                                subcategory: activeTx.subcategory,
+                                type: activeTx.type
+                            }
+                            : tx
+                    )
+                );
+            }
 
             setActiveTx(null);
 
         } catch (err) {
-            console.error("Failed to update transaction:", err);
+            console.error("Update failed:", err);
         }
     }
 
@@ -208,7 +252,6 @@ export default function Transactions() {
     return (
         <div className="flex flex-col h-[calc(100vh-120px)] w-full">
 
-            {/* Header */}
             <PageHeader
                 title="Transactions"
                 year={year}
@@ -218,46 +261,56 @@ export default function Transactions() {
                 actions={
                     <div className="flex items-center gap-2">
 
-                        {/* Edit */}
                         <button
                             onClick={() => setEditMode(prev => !prev)}
                             className="p-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-700"
-                            title={editMode ? "Finish Editing" : "Edit Transactions"}
                         >
                             <Pencil size={16} />
                         </button>
 
-                        {/* Download */}
                         <button
                             onClick={handleDownload}
                             className="p-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-700"
-                            title="Download as Excel"
                         >
                             <Download size={16} />
                         </button>
 
-                        {/* Reset Filters */}
-                        {(filters.date ||
-                            filters.type ||
-                            filters.category ||
-                            filters.mode ||
-                            filters.bank ||
-                            filters.remarks ||
-                            filters.description) && (
+                        {(filters.date || filters.type || filters.category ||
+                            filters.mode || filters.bank || filters.remarks || filters.description) && (
                             <button
                                 onClick={resetFilters}
                                 className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                title="Clear Filters"
                             >
                                 <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
                             </button>
                         )}
-
                     </div>
                 }
             />
 
-            {/* Table */}
+            {/* ✅ NEW: Bulk Action Bar */}
+            {selectedTxIds.size > 0 && (
+                <div className="flex items-center justify-between p-2 mt-2 bg-blue-50 dark:bg-gray-800 border rounded-md">
+                    <span className="text-sm">{selectedTxIds.size} selected</span>
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setActiveTx({ bulk: true })}
+                            className="px-3 py-1 bg-gray-900 text-white rounded-md"
+                        >
+                            Edit Selected
+                        </button>
+
+                        <button
+                            onClick={clearSelection}
+                            className="px-3 py-1 border rounded-md"
+                        >
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="flex-1 min-h-0 mt-4">
                 <TransactionsTable
                     transactions={groupedTransactions}
@@ -268,17 +321,20 @@ export default function Transactions() {
                     editMode={editMode}
                     setEditMode={setEditMode}
                     setActiveTx={setActiveTx}
+
+                    // ✅ NEW props
+                    selectedTxIds={selectedTxIds}
+                    toggleSelect={toggleSelect}
+                    selectAll={selectAll}
                 />
             </div>
 
-            {/* Date Notice */}
             {filters.date && (
                 <div className="text-sm text-red-500 mt-2">
                     Showing transactions for: {filters.date}
                 </div>
             )}
 
-            {/* Modal */}
             {activeTx && (
                 <EditTransactionModal
                     activeTx={activeTx}

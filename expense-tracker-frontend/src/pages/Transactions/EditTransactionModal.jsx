@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { categoryOptions, subcategoryMap } from "../../constants/categories";
 
 export default function EditTransactionModal({
@@ -5,6 +6,13 @@ export default function EditTransactionModal({
                                                  setActiveTx,
                                                  onSave
                                              }) {
+
+    const isBulk = activeTx?.bulk;
+
+    // ✅ Local controlled state (critical fix)
+    const [type, setType] = useState("");
+    const [category, setCategory] = useState("");
+    const [subcategory, setSubcategory] = useState("");
 
     const inputClass =
         "w-full mt-1 border rounded px-3 py-2 " +
@@ -15,6 +23,49 @@ export default function EditTransactionModal({
     const labelClass =
         "text-sm text-gray-700 dark:text-gray-300";
 
+    // ✅ Initialize state safely
+    useEffect(() => {
+        if (!activeTx) return;
+
+        if (isBulk) {
+            setType("");
+            setCategory("");
+            setSubcategory("");
+        } else {
+            setType(activeTx.type || "");
+            setCategory(activeTx.category || "");
+            setSubcategory(activeTx.subcategory || "");
+        }
+    }, [activeTx, isBulk]);
+
+    // ✅ Derived subcategories (fix for bug #2)
+    const subcategories = useMemo(() => {
+        return subcategoryMap[category] || [];
+    }, [category]);
+
+    // ✅ Reset subcategory when category changes
+    useEffect(() => {
+        if (!category) return;
+
+        if (!subcategories.includes(subcategory)) {
+            setSubcategory(subcategories[0] || "");
+        }
+    }, [category, subcategories]);
+
+    function handleSave() {
+
+        const payload = {
+            ...activeTx
+        };
+
+        // ✅ Only send fields user actually changed (critical fix)
+        if (type) payload.type = type;
+        if (category) payload.category = category;
+        if (subcategory) payload.subcategory = subcategory;
+
+        onSave(payload);
+    }
+
     return (
 
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
@@ -22,93 +73,56 @@ export default function EditTransactionModal({
             <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl p-6 w-96 space-y-4 shadow-lg">
 
                 <h2 className="text-lg font-semibold">
-                    Edit Transaction
+                    {isBulk ? "Edit Selected Transactions" : "Edit Transaction"}
                 </h2>
 
                 {/* Transaction Type */}
                 <div>
-
-                    <label className={labelClass}>
-                        Transaction Type
-                    </label>
+                    <label className={labelClass}>Transaction Type</label>
 
                     <select
-                        value={activeTx.type || "expense"}
-                        onChange={(e) => {
-
-                            const value = e.target.value;
-
-                            setActiveTx(prev => ({
-                                ...prev,
-                                type: value
-                            }));
-
-                        }}
+                        value={type}
+                        onChange={(e) => setType(e.target.value)}
                         className={inputClass}
                     >
+                        <option value="">-- Select --</option>
                         <option value="expense">Expense</option>
                         <option value="income">Income</option>
                         <option value="transfer">Transfer</option>
                     </select>
-
                 </div>
 
                 {/* Category */}
                 <div>
-
-                    <label className={labelClass}>
-                        Category
-                    </label>
+                    <label className={labelClass}>Category</label>
 
                     <select
-                        value={activeTx.category}
-                        onChange={(e) => {
-
-                            const newCategory = e.target.value;
-                            const firstSub = (subcategoryMap[newCategory] || [])[0] || "";
-
-                            setActiveTx(prev => ({
-                                ...prev,
-                                category: newCategory,
-                                subcategory: firstSub
-                            }));
-
-                        }}
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
                         className={inputClass}
                     >
+                        <option value="">-- Select --</option>
                         {categoryOptions.map(cat => (
-                            <option key={cat}>{cat}</option>
+                            <option key={cat} value={cat}>{cat}</option>
                         ))}
                     </select>
-
                 </div>
 
                 {/* Subcategory */}
                 <div>
-
-                    <label className={labelClass}>
-                        Subcategory
-                    </label>
+                    <label className={labelClass}>Subcategory</label>
 
                     <select
-                        value={activeTx.subcategory}
-                        onChange={(e) => {
-
-                            const value = e.target.value;
-
-                            setActiveTx(prev => ({
-                                ...prev,
-                                subcategory: value
-                            }));
-
-                        }}
+                        value={subcategory}
+                        onChange={(e) => setSubcategory(e.target.value)}
                         className={inputClass}
+                        disabled={!category}
                     >
-                        {(subcategoryMap[activeTx.category] || []).map(sub => (
-                            <option key={sub}>{sub}</option>
+                        <option value="">-- Select --</option>
+                        {subcategories.map(sub => (
+                            <option key={sub} value={sub}>{sub}</option>
                         ))}
                     </select>
-
                 </div>
 
                 {/* Buttons */}
@@ -125,7 +139,7 @@ export default function EditTransactionModal({
                     </button>
 
                     <button
-                        onClick={() => onSave(activeTx)}
+                        onClick={handleSave}
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                         Save
@@ -136,6 +150,5 @@ export default function EditTransactionModal({
             </div>
 
         </div>
-
     );
 }

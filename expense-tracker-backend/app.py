@@ -237,11 +237,36 @@ def update_transaction(txn_id):
     return jsonify({"success": True})
 
 
-@app.route("/api/transactions/bulk", methods=["PATCH"])
-def bulk_update():
-    updates = request.json
-    bulk_update_transactions(updates)
-    return jsonify({"updated": len(updates)})
+@app.route("/api/transactions/bulk-update", methods=["POST"])
+def bulk_update_api():
+
+    data = request.get_json(silent=True) or {}
+
+    ids = data.get("ids", [])
+    category = data.get("category")
+    subcategory = data.get("subcategory")
+    txn_type = data.get("type")
+
+    if not ids:
+        return jsonify({"error": "No transaction IDs"}), 400
+
+    updates = {}
+
+    if category is not None:
+        updates["category"] = category
+
+    if subcategory is not None:
+        updates["sub_category"] = subcategory
+
+    if txn_type is not None:
+        updates["type"] = txn_type
+
+    updated = bulk_update_transactions(ids, updates)
+
+    return jsonify({
+        "success": True,
+        "updated": updated
+    })
 
 
 @app.route("/api/transactions/<int:txn_id>/remarks", methods=["PATCH"])
