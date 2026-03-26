@@ -218,3 +218,97 @@ def update_transaction_remarks(txn_id, remarks):
 
     finally:
         DB_POOL.putconn(conn)
+
+# ==============================
+# NEW: Manual (Cash) Transaction APIs
+# ==============================
+
+def create_transaction(tx):
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO transactions
+            (date, amount, category, sub_category, mode, bank, description, remarks, type)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
+        """, (
+            tx["date"],
+            tx["amount"],
+            tx["category"],
+            tx["sub_category"],
+            tx["mode"],          # should be "cash"
+            tx["bank"],          # should be None
+            tx.get("description"),
+            tx.get("remarks"),
+            tx.get("type")       # optional but good to store
+        ))
+
+        result = cur.fetchone()
+
+        conn.commit()
+        cur.close()
+
+        return result[0]  # return id
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        DB_POOL.putconn(conn)
+
+
+def get_transaction_by_id(txn_id):
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT id, mode
+            FROM transactions
+            WHERE id = %s
+        """, (txn_id,))
+
+        row = cur.fetchone()
+
+        cur.close()
+
+        if not row:
+            return None
+
+        return {
+            "id": row[0],
+            "mode": row[1]
+        }
+
+    finally:
+        DB_POOL.putconn(conn)
+
+
+def delete_transaction_by_id(txn_id):
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            DELETE FROM transactions
+            WHERE id = %s
+        """, (txn_id,))
+
+        conn.commit()
+        cur.close()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        DB_POOL.putconn(conn)

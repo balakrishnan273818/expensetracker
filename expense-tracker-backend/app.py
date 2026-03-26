@@ -223,6 +223,48 @@ def get_transactions():
 
     return jsonify(transactions)
 
+@app.route("/api/transactions/add", methods=["POST"])
+def add_transaction():
+    try:
+        data = request.get_json(silent=True) or {}
+
+        # 🔒 Validation
+        required_fields = ["amount", "type", "category", "date"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        amount = float(data.get("amount"))
+
+        # Normalize type → amount sign
+        if data.get("type") == "expense" and amount > 0:
+            amount = -amount
+        elif data.get("type") == "income" and amount < 0:
+            amount = abs(amount)
+
+        tx = {
+            "date": data.get("date"),
+            "amount": amount,
+            "category": data.get("category"),
+            "sub_category": data.get("sub_category") or data.get("subcategory"),
+            "mode": "cash",   # 🔥 force cash
+            "bank": None,     # 🔥 critical
+            "description": data.get("description"),
+            "remarks": data.get("remarks")
+        }
+
+        # 👉 call repo (you’ll add this next)
+        from repositories.transaction_repo import create_transaction
+        created_id = create_transaction(tx)
+
+        return jsonify({
+            "id": created_id,
+            **tx
+        }), 201
+
+    except Exception as e:
+        print("Add transaction failed:", str(e))
+        return jsonify({"error": "Failed to create transaction"}), 500
 
 @app.route("/api/transactions/<int:txn_id>", methods=["PATCH"])
 def update_transaction(txn_id):
@@ -278,6 +320,27 @@ def update_remarks(txn_id):
 
     return jsonify({"success": True})
 
+@app.route("/api/transactions/<int:txn_id>", methods=["DELETE"])
+def delete_transaction(txn_id):
+    try:
+        from repositories.transaction_repo import delete_transaction_by_id, get_transaction_by_id
+
+        tx = get_transaction_by_id(txn_id)
+
+        if not tx:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        # 🔒 Only allow cash delete
+        if tx["mode"] != "cash":
+            return jsonify({"error": "Only cash transactions can be deleted"}), 400
+
+        delete_transaction_by_id(txn_id)
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        print("Delete failed:", str(e))
+        return jsonify({"error": "Failed to delete transaction"}), 500
 
 # ==============================
 # BUDGET APIs
