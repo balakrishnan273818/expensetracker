@@ -9,10 +9,18 @@ export default function EditTransactionModal({
 
     const isBulk = activeTx?.bulk;
 
-    // ✅ Local controlled state (critical fix)
+    // ✅ NEW: detect cash create mode
+    const isCashCreate = activeTx?.isNew && activeTx?.mode === "cash";
+
+    // ✅ Local controlled state (existing)
     const [type, setType] = useState("");
     const [category, setCategory] = useState("");
     const [subcategory, setSubcategory] = useState("");
+
+    // ✅ NEW: local state for cash mode
+    const [amount, setAmount] = useState("");
+    const [date, setDate] = useState("");
+    const [remarks, setRemarks] = useState("");
 
     const inputClass =
         "w-full mt-1 border rounded px-3 py-2 " +
@@ -31,19 +39,24 @@ export default function EditTransactionModal({
             setType("");
             setCategory("");
             setSubcategory("");
+        } else if (isCashCreate) {
+            const today = new Date().toISOString().slice(0, 10);
+            setAmount(activeTx.amount || "");
+            setDate(activeTx.date || today);
+            setRemarks(activeTx.remarks || "");
         } else {
             setType(activeTx.type || "");
             setCategory(activeTx.category || "");
             setSubcategory(activeTx.subcategory || "");
         }
-    }, [activeTx, isBulk]);
+    }, [activeTx, isBulk, isCashCreate]);
 
-    // ✅ Derived subcategories (fix for bug #2)
+    // ✅ Derived subcategories (existing)
     const subcategories = useMemo(() => {
         return subcategoryMap[category] || [];
     }, [category]);
 
-    // ✅ Reset subcategory when category changes
+    // ✅ Reset subcategory when category changes (existing)
     useEffect(() => {
         if (!category) return;
 
@@ -54,11 +67,36 @@ export default function EditTransactionModal({
 
     function handleSave() {
 
+        // ✅ CASH MODE SAVE
+        if (isCashCreate) {
+
+            // minimal validation
+            if (!amount || !date) {
+                return;
+            }
+
+            const payload = {
+                ...activeTx,
+                amount: Number(amount),
+                date: date || new Date().toISOString().slice(0, 10),
+                remarks: remarks || "",
+                mode: "cash",
+                bank: null,
+                description: null,
+                category: "Others",   // fallback
+                subcategory: "Cash",
+                type: "expense"
+            };
+
+            onSave(payload);
+            return;
+        }
+
+        // ✅ EXISTING LOGIC (UNCHANGED)
         const payload = {
             ...activeTx
         };
 
-        // ✅ Only send fields user actually changed (critical fix)
         if (type) payload.type = type;
         if (category) payload.category = category;
         if (subcategory) payload.subcategory = subcategory;
@@ -73,57 +111,105 @@ export default function EditTransactionModal({
             <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl p-6 w-96 space-y-4 shadow-lg">
 
                 <h2 className="text-lg font-semibold">
-                    {isBulk ? "Edit Selected Transactions" : "Edit Transaction"}
+                    {isCashCreate
+                        ? "Add Cash Transaction"
+                        : isBulk
+                            ? "Edit Selected Transactions"
+                            : "Edit Transaction"}
                 </h2>
 
-                {/* Transaction Type */}
-                <div>
-                    <label className={labelClass}>Transaction Type</label>
+                {/* ✅ CASH MODE UI */}
+                {isCashCreate ? (
+                    <>
+                        {/* Date */}
+                        <div>
+                            <label className={labelClass}>Date</label>
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
 
-                    <select
-                        value={type}
-                        onChange={(e) => setType(e.target.value)}
-                        className={inputClass}
-                    >
-                        <option value="">-- Select --</option>
-                        <option value="expense">Expense</option>
-                        <option value="income">Income</option>
-                        <option value="transfer">Transfer</option>
-                    </select>
-                </div>
+                        {/* Amount */}
+                        <div>
+                            <label className={labelClass}>Amount</label>
+                            <input
+                                type="number"
+                                placeholder="Enter amount"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
 
-                {/* Category */}
-                <div>
-                    <label className={labelClass}>Category</label>
+                        {/* Remarks */}
+                        <div>
+                            <label className={labelClass}>Remarks (optional)</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Tea, Snacks"
+                                value={remarks}
+                                onChange={(e) => setRemarks(e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* EXISTING UI (UNCHANGED) */}
 
-                    <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className={inputClass}
-                    >
-                        <option value="">-- Select --</option>
-                        {categoryOptions.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
-                </div>
+                        {/* Transaction Type */}
+                        <div>
+                            <label className={labelClass}>Transaction Type</label>
 
-                {/* Subcategory */}
-                <div>
-                    <label className={labelClass}>Subcategory</label>
+                            <select
+                                value={type}
+                                onChange={(e) => setType(e.target.value)}
+                                className={inputClass}
+                            >
+                                <option value="">-- Select --</option>
+                                <option value="expense">Expense</option>
+                                <option value="income">Income</option>
+                                <option value="transfer">Transfer</option>
+                            </select>
+                        </div>
 
-                    <select
-                        value={subcategory}
-                        onChange={(e) => setSubcategory(e.target.value)}
-                        className={inputClass}
-                        disabled={!category}
-                    >
-                        <option value="">-- Select --</option>
-                        {subcategories.map(sub => (
-                            <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                    </select>
-                </div>
+                        {/* Category */}
+                        <div>
+                            <label className={labelClass}>Category</label>
+
+                            <select
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className={inputClass}
+                            >
+                                <option value="">-- Select --</option>
+                                {categoryOptions.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Subcategory */}
+                        <div>
+                            <label className={labelClass}>Subcategory</label>
+
+                            <select
+                                value={subcategory}
+                                onChange={(e) => setSubcategory(e.target.value)}
+                                className={inputClass}
+                                disabled={!category}
+                            >
+                                <option value="">-- Select --</option>
+                                {subcategories.map(sub => (
+                                    <option key={sub} value={sub}>{sub}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </>
+                )}
 
                 {/* Buttons */}
                 <div className="flex justify-end gap-3 pt-2">

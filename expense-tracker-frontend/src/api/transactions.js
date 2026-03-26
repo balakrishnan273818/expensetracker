@@ -16,6 +16,7 @@ export async function updateTransactionsBulk(transactions) {
     return await response.json();
 }
 
+// ✅ DELETE (already correct)
 export async function deleteTransaction(id) {
     const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
         method: "DELETE",
@@ -28,6 +29,24 @@ export async function deleteTransaction(id) {
     return await response.json();
 }
 
+// ✅ NEW: CREATE TRANSACTION (ADD THIS)
+export async function createTransaction(data) {
+    const response = await fetch(`${API_BASE}/api/transactions/add`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to create transaction");
+    }
+
+    return await response.json();
+}
+
+// ✅ FETCH
 export async function getTransactions() {
 
     const res = await fetch(`${API_BASE}/api/transactions`);
@@ -39,6 +58,7 @@ export async function getTransactions() {
     return await res.json();
 }
 
+// ✅ UPDATE
 export async function updateTransactionCategory(
     id,
     category,
@@ -51,7 +71,6 @@ export async function updateTransactionCategory(
         sub_category: subcategory
     };
 
-    // Only send type if provided
     if (type !== null) {
         payload.type = type;
     }

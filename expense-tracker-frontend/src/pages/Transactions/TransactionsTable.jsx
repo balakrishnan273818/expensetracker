@@ -16,7 +16,8 @@ export default function TransactionsTable({
                                               // ✅ NEW props
                                               selectedTxIds,
                                               toggleSelect,
-                                              selectAll
+                                              selectAll,
+                                              onDelete
                                           }) {
 
     const [sortConfig, setSortConfig] = useState({
@@ -183,6 +184,7 @@ export default function TransactionsTable({
                         // ✅ NEW
                         isSelected={selectedTxIds.has(tx.id)}
                         toggleSelect={toggleSelect}
+                        onDelete={onDelete}
                     />
                 ))}
 
@@ -216,6 +218,7 @@ export default function TransactionsTable({
                                     // ✅ NEW
                                     isSelected={selectedTxIds.has(tx.id)}
                                     toggleSelect={toggleSelect}
+                                    onDelete={onDelete}
                                 />
                             ))}
 
