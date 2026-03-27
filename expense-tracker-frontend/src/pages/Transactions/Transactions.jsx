@@ -9,6 +9,7 @@ import {
 } from "../../api/transactions";
 import { parseISO, format, isValid } from "date-fns";
 import { Pencil, RotateCcw, Download, Plus, ArrowLeft } from "lucide-react";
+import { Minimize2, Maximize2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import TransactionsTable from "./TransactionsTable";
@@ -368,6 +369,19 @@ export default function Transactions() {
             addToast("Download failed", "error");
         }
     }
+    const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+    function toggleAllGroups() {
+
+        if (collapsedGroups.size === groupedTransactions.length) {
+            // Expand all
+            setCollapsedGroups(new Set());
+        } else {
+            // Collapse all
+            setCollapsedGroups(
+                new Set(groupedTransactions.map(g => g.label))
+            );
+        }
+    }
 
     return (
         <div className="flex flex-col h-[calc(100vh-120px)] w-full">
@@ -386,6 +400,7 @@ export default function Transactions() {
                                 bg-gray-200 text-gray-800
                                 hover:bg-gray-300
                                 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                focus:outline-none focus:ring-2 focus:ring-blue-500
                                 transition"
                         >
                             <ArrowLeft size={16} />
@@ -402,6 +417,7 @@ export default function Transactions() {
                                 bg-gray-200 text-gray-800
                                 hover:bg-gray-300
                                 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                focus:outline-none focus:ring-2 focus:ring-blue-500
                                 transition"
                         >
                             <Plus size={16} />
@@ -422,6 +438,7 @@ export default function Transactions() {
                                 bg-gray-200 text-gray-800
                                 hover:bg-gray-300
                                 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                focus:outline-none focus:ring-2 focus:ring-blue-500
                                 transition"
                         >
                             <Download size={16} />
@@ -432,9 +449,25 @@ export default function Transactions() {
                                 bg-gray-200 text-gray-800
                                 hover:bg-gray-300
                                 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                focus:outline-none focus:ring-2 focus:ring-blue-500
                                 transition"
                         >
                             <RotateCcw size={16} />
+                        </button>
+                        <button
+                            onClick={toggleAllGroups}
+                            title={collapsedGroups.size === groupedTransactions.length ? "Expand All" : "Collapse All"}
+                            className="p-2 rounded-md
+                                        bg-gray-200 text-gray-800
+                                        hover:bg-gray-300
+                                        dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                        focus:outline-none focus:ring-2 focus:ring-blue-500
+                                        transition"
+                        >
+                            {collapsedGroups.size === groupedTransactions.length
+                                ? <Maximize2 size={16} />   // Expand
+                                : <Minimize2 size={16} />   // Collapse
+                            }
                         </button>
                     </div>
                 }
@@ -442,6 +475,8 @@ export default function Transactions() {
 
             <div className="flex-1 min-h-0 mt-4">
                 <TransactionsTable
+                    collapsedGroups={collapsedGroups}
+                    setCollapsedGroups={setCollapsedGroups}
                     transactions={groupedTransactions}
                     isGrouped={true}
                     filters={filters}

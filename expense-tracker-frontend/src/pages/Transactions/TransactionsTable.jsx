@@ -2,17 +2,19 @@ import { useState, useMemo } from "react";
 import React from "react";
 import TransactionRow from "./TransactionRow";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { formatCurrency } from "../../utils/currency"; // ✅ added
+import { formatCurrency } from "../../utils/currency";
+import { Minimize2, Maximize2 } from "lucide-react";
 
 export default function TransactionsTable({
                                               transactions,
+                                              collapsedGroups,
+                                              setCollapsedGroups,
                                               setTransactions,
                                               editMode,
                                               setActiveTx,
                                               filters,
                                               setFilters,
                                               isGrouped = false,
-
                                               selectedTxIds,
                                               toggleSelect,
                                               selectAll,
@@ -24,13 +26,13 @@ export default function TransactionsTable({
         direction: "desc"
     });
 
-    const [collapsedGroups, setCollapsedGroups] = useState({});
-
+    // ✅ FIX: correct Set-based toggle
     function toggleGroup(label) {
-        setCollapsedGroups(prev => ({
-            ...prev,
-            [label]: !prev[label]
-        }));
+        setCollapsedGroups(prev => {
+            const newSet = new Set(prev);
+            newSet.has(label) ? newSet.delete(label) : newSet.add(label);
+            return newSet;
+        });
     }
 
     function handleSort(column) {
@@ -151,20 +153,6 @@ export default function TransactionsTable({
                     </th>
                 </tr>
 
-                <tr className="bg-gray-100 dark:bg-gray-900 text-xs">
-                    <th></th>
-                    <th className="px-2 py-2">
-                        <input value={filters.date} onChange={(e)=>setFilters({...filters,date:e.target.value})} className="w-full px-2 py-1 border rounded"/>
-                    </th>
-                    <th><input disabled className="w-full px-2 py-1 border rounded"/></th>
-                    <th><input value={filters.type} onChange={(e)=>setFilters({...filters,type:e.target.value})} className="w-full px-2 py-1 border rounded"/></th>
-                    <th><input value={filters.category} onChange={(e)=>setFilters({...filters,category:e.target.value})} className="w-full px-2 py-1 border rounded"/></th>
-                    <th><input value={filters.mode} onChange={(e)=>setFilters({...filters,mode:e.target.value})} className="w-full px-2 py-1 border rounded"/></th>
-                    <th><input value={filters.bank} onChange={(e)=>setFilters({...filters,bank:e.target.value})} className="w-full px-2 py-1 border rounded"/></th>
-                    <th><input value={filters.remarks} onChange={(e)=>setFilters({...filters,remarks:e.target.value})} className="w-full px-2 py-1 border rounded"/></th>
-                    <th><input value={filters.description} onChange={(e)=>setFilters({...filters,description:e.target.value})} className="w-full px-2 py-1 border rounded"/></th>
-                </tr>
-
                 </thead>
 
                 <tbody>
@@ -184,7 +172,8 @@ export default function TransactionsTable({
 
                 {isGrouped && processedData.map((group) => {
 
-                    const isCollapsed = collapsedGroups[group.label];
+                    // ✅ FIX: Set-based check
+                    const isCollapsed = collapsedGroups.has(group.label);
 
                     return (
                         <React.Fragment key={group.label}>
@@ -195,9 +184,11 @@ export default function TransactionsTable({
                             >
                                 <td colSpan="9" className="px-4 py-2">
                                     <div className="flex items-center gap-2">
-                                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                                        {isCollapsed
+                                            ? <ChevronRight size={16} />
+                                            : <ChevronDown size={16} />
+                                        }
 
-                                        {/* ✅ UPDATED HEADER */}
                                         <div className="flex items-center gap-1 flex-wrap">
                                             <span className="font-semibold">{group.label}</span>
                                             <span className="text-gray-500 dark:text-gray-400">
@@ -208,12 +199,14 @@ export default function TransactionsTable({
                                                 Expense:
                                             </span>
 
-                                            <span className={group.total < 0 ? "text-red-500 font-semibold" : "text-green-600 font-semibold"}>
+                                            <span className={group.total < 0
+                                                ? "text-red-500 font-semibold"
+                                                : "text-green-600 font-semibold"}>
                                                 {formatCurrency(group.total)}
                                             </span>
+
                                             <span className="text-gray-500 dark:text-gray-400">)</span>
                                         </div>
-
                                     </div>
                                 </td>
                             </tr>
