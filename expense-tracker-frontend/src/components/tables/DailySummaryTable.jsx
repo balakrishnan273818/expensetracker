@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatCurrency } from "../../utils/currency";
 import { getCategoryMeta } from "../../utils/categories";
+import { useNavigate } from "react-router-dom";
 
 export default function DailySummaryTable({ year, month, transactions = [] }) {
 
@@ -29,6 +30,22 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
             d.getMonth() === month
         );
     });
+
+    const navigate = useNavigate();
+
+    function handleCellClick(day, category) {
+        const monthStr = String(month + 1).padStart(2, "0");
+        const dayStr = String(day).padStart(2, "0");
+
+        const formattedDate = `${year}-${monthStr}-${dayStr}`;
+
+        const params = new URLSearchParams({
+            date: formattedDate,
+            category
+        });
+
+        navigate(`/transactions?${params.toString()}`);
+    }
 
     let categories = [...new Set(filtered.map((t) => t.category))];
 
@@ -158,15 +175,17 @@ export default function DailySummaryTable({ year, month, transactions = [] }) {
                                 return (
                                     <td
                                         key={cat}
-                                        onMouseEnter={() => setHoveredCol(colIndex)}
-                                        onMouseLeave={() => setHoveredCol(null)}
-                                        className={`px-4 py-3 text-right transition
-                                                ${hoveredCol === colIndex
-                                            ? "bg-gray-100 dark:bg-gray-800"
-                                            : hoveredRow === day
-                                                ? "bg-gray-50 dark:bg-gray-800/60"
-                                                : ""}
-                                            `}
+                                        onClick={() => {
+                                            if (value) handleCellClick(day, cat);
+                                        }}
+                                        className={`px-4 py-3 text-right transition cursor-pointer
+                                            ${hoveredCol === colIndex
+                                                ? "bg-gray-100 dark:bg-gray-800"
+                                                : hoveredRow === day
+                                                    ? "bg-gray-50 dark:bg-gray-800/60"
+                                                :   ""}
+                                                ${value ? "hover:bg-blue-50 dark:hover:bg-blue-900/20" : ""}
+                                        `}
                                     >
                                         {value ? (
                                             <span className="font-medium tabular-nums">

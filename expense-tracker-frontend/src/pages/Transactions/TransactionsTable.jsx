@@ -2,18 +2,17 @@ import { useState, useMemo } from "react";
 import React from "react";
 import TransactionRow from "./TransactionRow";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { formatCurrency } from "../../utils/currency"; // ✅ added
 
 export default function TransactionsTable({
                                               transactions,
                                               setTransactions,
                                               editMode,
-                                              setEditMode,
                                               setActiveTx,
                                               filters,
                                               setFilters,
                                               isGrouped = false,
 
-                                              // ✅ NEW props
                                               selectedTxIds,
                                               toggleSelect,
                                               selectAll,
@@ -97,7 +96,6 @@ export default function TransactionsTable({
         return sortConfig.direction === "asc" ? "↑" : "↓";
     }
 
-    // ✅ NEW: flatten ids for select-all
     const allTransactionIds = useMemo(() => {
         if (!isGrouped) return processedData.map(tx => tx.id);
         return processedData.flatMap(group => group.data.map(tx => tx.id));
@@ -115,7 +113,6 @@ export default function TransactionsTable({
                 <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 z-10">
 
                 <tr>
-                    {/* ✅ Checkbox header */}
                     <th className="px-2 py-3">
                         <input
                             type="checkbox"
@@ -154,7 +151,6 @@ export default function TransactionsTable({
                     </th>
                 </tr>
 
-                {/* Filters */}
                 <tr className="bg-gray-100 dark:bg-gray-900 text-xs">
                     <th></th>
                     <th className="px-2 py-2">
@@ -180,8 +176,6 @@ export default function TransactionsTable({
                         editMode={editMode}
                         setTransactions={setTransactions}
                         setActiveTx={setActiveTx}
-
-                        // ✅ NEW
                         isSelected={selectedTxIds.has(tx.id)}
                         toggleSelect={toggleSelect}
                         onDelete={onDelete}
@@ -202,7 +196,24 @@ export default function TransactionsTable({
                                 <td colSpan="9" className="px-4 py-2">
                                     <div className="flex items-center gap-2">
                                         {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                                        <span>{group.label} ({group.data.length} transactions)</span>
+
+                                        {/* ✅ UPDATED HEADER */}
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            <span className="font-semibold">{group.label}</span>
+                                            <span className="text-gray-500 dark:text-gray-400">
+                                                ({group.count} txns,
+                                            </span>
+
+                                            <span className="text-gray-500 dark:text-gray-400">
+                                                Expense:
+                                            </span>
+
+                                            <span className={group.total < 0 ? "text-red-500 font-semibold" : "text-green-600 font-semibold"}>
+                                                {formatCurrency(group.total)}
+                                            </span>
+                                            <span className="text-gray-500 dark:text-gray-400">)</span>
+                                        </div>
+
                                     </div>
                                 </td>
                             </tr>
@@ -214,8 +225,6 @@ export default function TransactionsTable({
                                     editMode={editMode}
                                     setTransactions={setTransactions}
                                     setActiveTx={setActiveTx}
-
-                                    // ✅ NEW
                                     isSelected={selectedTxIds.has(tx.id)}
                                     toggleSelect={toggleSelect}
                                     onDelete={onDelete}

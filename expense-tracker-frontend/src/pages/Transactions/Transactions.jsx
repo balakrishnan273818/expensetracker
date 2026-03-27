@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+//import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
     getTransactions,
     updateTransactionCategory,
@@ -7,7 +8,7 @@ import {
     deleteTransaction as deleteTransactionAPI
 } from "../../api/transactions";
 import { parseISO, format, isValid } from "date-fns";
-import { Pencil, RotateCcw, Download } from "lucide-react";
+import { Pencil, RotateCcw, Download, Plus, ArrowLeft } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import TransactionsTable from "./TransactionsTable";
@@ -15,10 +16,10 @@ import EditTransactionModal from "./EditTransactionModal";
 import PageHeader from "../../components/common/PageHeader";
 import { useMonth } from "../../context/MonthContext";
 import { useToast } from "../../context/ToastContext";
-import { Plus, IndianRupee } from "lucide-react";
 
 export default function Transactions() {
 
+    const navigate = useNavigate();
     const { year, month, setYear, setMonth } = useMonth();
     const { addToast } = useToast();
 
@@ -27,19 +28,33 @@ export default function Transactions() {
     const [transactions, setTransactions] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
-
     const [selectedTxIds, setSelectedTxIds] = useState(new Set());
 
-    const [filters, setFilters] = useState(() => ({
-        date: searchParams.get("date") || "",
+    // ✅ Query params
+    const queryDate = searchParams.get("date") || "";
+    const queryCategory = searchParams.get("category") || "";
+
+    // ✅ UI-controlled filters
+    const [filters, setFilters] = useState({
+        date: queryDate,
         type: "",
-        category: "",
+        category: queryCategory,
         mode: "",
         bank: "",
         remarks: "",
         description: ""
-    }));
+    });
 
+    // ✅ Derived filters (no setState in effect)
+    const effectiveFilters = useMemo(() => {
+        return {
+            ...filters,
+            date: queryDate || filters.date,
+            category: queryCategory || filters.category
+        };
+    }, [filters, queryDate, queryCategory]);
+
+    // ✅ Load transactions
     useEffect(() => {
         async function loadTransactions() {
             try {
@@ -70,6 +85,7 @@ export default function Transactions() {
         loadTransactions();
     }, []);
 
+    // ✅ Filtering (FIXED)
     const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
 
@@ -78,23 +94,54 @@ export default function Transactions() {
             const txMonth = tx.parsedDate.getMonth();
             const txYear = tx.parsedDate.getFullYear();
 
+            // ✅ FIXED DATE (no ISO)
+            const y = tx.parsedDate.getFullYear();
+            const m = String(tx.parsedDate.getMonth() + 1).padStart(2, "0");
+            const d = String(tx.parsedDate.getDate()).padStart(2, "0");
+            const txDateStr = `${y}-${m}-${d}`;
+
             return (
-                (!filters.date || tx.date?.slice(0, 10) === filters.date) &&
-                (filters.date || (txMonth === month && txYear === year)) &&
-                (!filters.type || (tx.type || "").toLowerCase().includes(filters.type.toLowerCase())) &&
-                (!filters.category || (tx.category || "").toLowerCase().includes(filters.category.toLowerCase())) &&
-                (!filters.mode || (tx.mode || "").includes(filters.mode.toLowerCase())) &&
-                (!filters.bank || (
+                // ✅ DATE FILTER
+                (!effectiveFilters.date || txDateStr === effectiveFilters.date) &&
+                (effectiveFilters.date || (txMonth === month && txYear === year)) &&
+
+                // ✅ TYPE
+                (!effectiveFilters.type ||
+                    (tx.type || "").toLowerCase().includes(effectiveFilters.type.toLowerCase())
+                ) &&
+
+                // ✅ CATEGORY (FIXED STRICT MATCH)
+                (!effectiveFilters.category ||
+                    (tx.category || "").toLowerCase().trim() ===
+                    effectiveFilters.category.toLowerCase().trim()
+                ) &&
+
+                // ✅ MODE
+                (!effectiveFilters.mode ||
+                    (tx.mode || "").includes(effectiveFilters.mode.toLowerCase())
+                ) &&
+
+                // ✅ BANK
+                (!effectiveFilters.bank || (
                     tx.isCash
-                        ? "cash".includes(filters.bank.toLowerCase())
-                        : (tx.bank || "").toLowerCase().includes(filters.bank.toLowerCase())
+                        ? "cash".includes(effectiveFilters.bank.toLowerCase())
+                        : (tx.bank || "").toLowerCase().includes(effectiveFilters.bank.toLowerCase())
                 )) &&
-                (!filters.remarks || (tx.remarks || "").toLowerCase().includes(filters.remarks.toLowerCase())) &&
-                (!filters.description || (tx.description || "").toLowerCase().includes(filters.description.toLowerCase()))
+
+                // ✅ REMARKS
+                (!effectiveFilters.remarks ||
+                    (tx.remarks || "").toLowerCase().includes(effectiveFilters.remarks.toLowerCase())
+                ) &&
+
+                // ✅ DESCRIPTION
+                (!effectiveFilters.description ||
+                    (tx.description || "").toLowerCase().includes(effectiveFilters.description.toLowerCase())
+                )
             );
         });
-    }, [transactions, filters, month, year]);
+    }, [transactions, effectiveFilters, month, year]);
 
+    // ✅ Grouping with totals
     const groupedTransactions = useMemo(() => {
 
         const weeks = { 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -110,14 +157,32 @@ export default function Transactions() {
         });
 
         return Object.entries(weeks)
-            .map(([week, data]) => ({
-                label: `Week ${week}`,
-                data
-            }))
+            .map(([week, data]) => {
+
+                const count = data.length;
+
+                const total = data.reduce((sum, tx) => {
+                    const type = (tx.type || "").toLowerCase();
+
+                    if (type === "expense" || type === "investment") {
+                        return sum - Math.abs(tx.amount);
+                    }
+
+                    return sum; // ignore income / transfer
+                }, 0);
+
+                return {
+                    label: `Week ${week}`,
+                    count,
+                    total,
+                    data
+                };
+            })
             .filter(group => group.data.length > 0);
 
     }, [filteredTransactions]);
 
+    // ✅ Selection
     function toggleSelect(id) {
         setSelectedTxIds(prev => {
             const newSet = new Set(prev);
@@ -134,10 +199,9 @@ export default function Transactions() {
         setSelectedTxIds(new Set());
     }
 
+    // ✅ Create
     async function handleCreateTransaction(tx) {
         try {
-
-            // ✅ VALIDATION (ADD HERE)
             if (!tx.amount || !tx.category || !tx.date) {
                 addToast("Please fill required fields", "error");
                 return;
@@ -145,7 +209,7 @@ export default function Transactions() {
 
             const created = await createTransaction({
                 ...tx,
-                amount: Number(tx.amount),   // ✅ ensure number
+                amount: Number(tx.amount),
                 mode: "cash"
             });
 
@@ -169,6 +233,7 @@ export default function Transactions() {
         }
     }
 
+    // ✅ Delete
     async function deleteTransaction(id) {
         try {
             const tx = transactions.find(t => t.id === id);
@@ -178,7 +243,6 @@ export default function Transactions() {
             }
 
             await deleteTransactionAPI(id);
-
             setTransactions(prev => prev.filter(t => t.id !== id));
 
             addToast("Transaction deleted", "success");
@@ -189,6 +253,7 @@ export default function Transactions() {
         }
     }
 
+    // ✅ Update
     async function saveCategoryUpdate(activeTx) {
         try {
 
@@ -216,12 +281,7 @@ export default function Transactions() {
                 setTransactions(prev =>
                     prev.map(tx =>
                         selectedTxIds.has(tx.id)
-                            ? {
-                                ...tx,
-                                category: activeTx.category,
-                                subcategory: activeTx.subcategory,
-                                type: activeTx.type
-                            }
+                            ? { ...tx, ...activeTx }
                             : tx
                     )
                 );
@@ -240,12 +300,7 @@ export default function Transactions() {
                 setTransactions(prev =>
                     prev.map(tx =>
                         tx.id === activeTx.id
-                            ? {
-                                ...tx,
-                                category: activeTx.category,
-                                subcategory: activeTx.subcategory,
-                                type: activeTx.type
-                            }
+                            ? { ...tx, ...activeTx }
                             : tx
                     )
                 );
@@ -259,6 +314,8 @@ export default function Transactions() {
     }
 
     function resetFilters() {
+
+        // ✅ Clear UI filters
         setFilters({
             date: "",
             type: "",
@@ -268,8 +325,12 @@ export default function Transactions() {
             remarks: "",
             description: ""
         });
+
+        // ✅ Clear URL params
+        navigate("/transactions", { replace: true });
     }
 
+    // ✅ Download
     function handleDownload() {
         try {
 
@@ -295,12 +356,6 @@ export default function Transactions() {
 
             const worksheet = XLSX.utils.json_to_sheet(flatData);
 
-            worksheet["!cols"] = [
-                { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 10 },
-                { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
-                { wch: 25 }, { wch: 30 }
-            ];
-
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
 
@@ -325,10 +380,17 @@ export default function Transactions() {
                 setMonth={setMonth}
                 actions={
                     <div className="flex items-center gap-2">
-
-                        {/* Add Cash */}
                         <button
-                            title="Add transaction"
+                            onClick={() => navigate(-1)}
+                            className="p-2 rounded-md
+                                bg-gray-200 text-gray-800
+                                hover:bg-gray-300
+                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                transition"
+                        >
+                            <ArrowLeft size={16} />
+                        </button>
+                        <button
                             onClick={() => setActiveTx({
                                 isNew: true,
                                 mode: "cash",
@@ -336,62 +398,47 @@ export default function Transactions() {
                                 category: "Others",
                                 date: new Date().toISOString().slice(0, 10)
                             })}
-                            className="flex items-center gap-2 px-3 py-2 rounded-md
-                                     bg-gray-900 text-white
-                                     hover:bg-gray-800
-                                     dark:bg-gray-700 dark:hover:bg-gray-600"
+                            className="p-2 rounded-md
+                                bg-gray-200 text-gray-800
+                                hover:bg-gray-300
+                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                transition"
                         >
                             <Plus size={16} />
                         </button>
 
-                        <button
-                            onClick={() => setEditMode(prev => !prev)}
-                            className="p-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-700"
+                        <button onClick={() => setEditMode(prev => !prev)}
+                                className={`p-2 rounded-md transition
+                                    ${editMode
+                                    ? "bg-blue-600 text-white hover:bg-blue-500"
+                                    : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                                }`}
                         >
                             <Pencil size={16} />
                         </button>
 
-                        <button
-                            onClick={handleDownload}
-                            className="p-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-700"
+                        <button onClick={handleDownload}
+                                className="p-2 rounded-md
+                                bg-gray-200 text-gray-800
+                                hover:bg-gray-300
+                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                transition"
                         >
                             <Download size={16} />
                         </button>
 
-                        {(filters.date || filters.type || filters.category ||
-                            filters.mode || filters.bank || filters.remarks || filters.description) && (
-                            <button
-                                onClick={resetFilters}
-                                className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                                <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                            </button>
-                        )}
+                        <button onClick={resetFilters}
+                                className="p-2 rounded-md
+                                bg-gray-200 text-gray-800
+                                hover:bg-gray-300
+                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+                                transition"
+                        >
+                            <RotateCcw size={16} />
+                        </button>
                     </div>
                 }
             />
-
-            {selectedTxIds.size > 0 && (
-                <div className="flex items-center justify-between p-2 mt-2 bg-blue-50 dark:bg-gray-800 border rounded-md">
-                    <span className="text-sm">{selectedTxIds.size} selected</span>
-
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setActiveTx({ bulk: true })}
-                            className="px-3 py-1 bg-gray-900 text-white rounded-md"
-                        >
-                            Edit Selected
-                        </button>
-
-                        <button
-                            onClick={clearSelection}
-                            className="px-3 py-1 border rounded-md"
-                        >
-                            Clear
-                        </button>
-                    </div>
-                </div>
-            )}
 
             <div className="flex-1 min-h-0 mt-4">
                 <TransactionsTable
@@ -401,7 +448,6 @@ export default function Transactions() {
                     setFilters={setFilters}
                     setTransactions={setTransactions}
                     editMode={editMode}
-                    setEditMode={setEditMode}
                     setActiveTx={setActiveTx}
                     selectedTxIds={selectedTxIds}
                     toggleSelect={toggleSelect}
