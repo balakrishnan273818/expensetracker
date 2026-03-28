@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { uploadFile, getUploadHistory } from "../../api/upload";
+import { formatDateTime } from "../../utils/date";
 import {
     UploadCloud,
     FileText,
@@ -20,34 +21,110 @@ import "./upload.css";
 
 export default function Upload() {
     const [file, setFile] = useState(null);
-    const [bank, setBank] = useState("hdfc");
-    const [progress, setProgress] = useState(0);
+
+    const [bank, setBank] = useState("idfc");
+
     const [uploading, setUploading] = useState(false);
     const [history, setHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
 
-    // ✅ Load history from backend
+    const [activeUploadId, setActiveUploadId] = useState(null);
+    const [totalTxns, setTotalTxns] = useState(null);
+    const [uploadCompleted, setUploadCompleted] = useState(false);
+
     useEffect(() => {
         loadHistory();
     }, []);
 
+    useEffect(() => {
+        if (!activeUploadId) return;
+
+        const interval = setInterval(() => {
+            loadHistory();
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [activeUploadId]);
+
     async function loadHistory() {
         try {
-            setLoadingHistory(true);
-
             const data = await getUploadHistory();
 
             const formatted = data.map((item) => ({
                 id: item.id,
                 fileName: item.file_name,
                 bank: item.bank,
-                date: item.uploaded_at,
+                date: formatDateTime(item.uploaded_at),
                 size: formatFileSize(item.file_size),
                 transactions: item.transactions_added,
+                total: item.total_records,
+                processed: item.processed_records,
                 status: item.status
             }));
 
-            setHistory(formatted);
+            // ✅ Restore active upload after refresh
+            let currentUploadId = activeUploadId;
+
+            if (!currentUploadId) {
+                const processingUpload = formatted.find(
+                    (h) => h.status === "processing"
+                );
+
+                if (processingUpload) {
+                    currentUploadId = processingUpload.id;
+                    setActiveUploadId(processingUpload.id);
+                }
+            }
+
+            setHistory((prev) => {
+                const map = new Map(prev.map((h) => [h.id, h]));
+
+                formatted.forEach((item) => {
+                    const existing = map.get(item.id);
+
+                    if (
+                        !existing ||
+                        existing.status !== item.status ||
+                        existing.transactions !== item.transactions ||
+                        existing.processed !== item.processed
+                    ) {
+                        map.set(item.id, item);
+                    }
+                });
+
+                return Array.from(map.values()).sort((a, b) => b.id - a.id);
+            });
+
+            // keep existing success logic
+            if (currentUploadId) {
+                const current = formatted.find(
+                    (h) => h.id === currentUploadId
+                );
+
+                if (current) {
+                    const inserted = current.transactions || 0;
+
+                    // existing logic
+                    if (current.status === "success" && !totalTxns) {
+                        setTotalTxns(inserted);
+                    }
+
+                    // ✅ NEW: completion acknowledgement (minimal change)
+                    if (current.status === "success" && !uploadCompleted) {
+                        setUploadCompleted(true);
+
+                        setTimeout(() => {
+                            alert("Upload completed successfully");
+
+                            // remove progress bar
+                            setActiveUploadId(null);
+
+                            // reset flag
+                            setUploadCompleted(false);
+                        }, 100);
+                    }
+                }
+            }
         } catch (err) {
             console.error("Failed to load history", err);
         } finally {
@@ -59,13 +136,16 @@ export default function Upload() {
         if (!file) return alert("Select file");
 
         setUploading(true);
-        setProgress(0);
+        setTotalTxns(null);
 
         try {
-            await uploadFile(file, bank, setProgress);
+            const res = await uploadFile(file, bank);
 
-            // Refresh history from backend
-            await loadHistory();
+            if (res?.id) {
+                setActiveUploadId(res.id);
+            }
+
+            setTimeout(loadHistory, 1000);
 
             setFile(null);
         } catch (err) {
@@ -88,6 +168,38 @@ export default function Upload() {
 
         return `${(kb / 1024).toFixed(2)} MB`;
     }
+
+    function formatDateTime(dateStr) {
+        if (!dateStr) return "-";
+
+        const date = new Date(dateStr);
+
+        return date.toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+        });
+    }
+
+    // ✅ DERIVED PROGRESS (NO STATE, NO FLICKER)
+    const activeUpload = history.find(
+        (h) => h.id === activeUploadId
+    );
+
+    const progress =
+        activeUpload && activeUpload.total > 0
+            ? Math.min(
+                Math.round(
+                    ((activeUpload.processed || 0) /
+                        activeUpload.total) *
+                    100
+                ),
+                100
+            )
+            : 0;
 
     return (
         <div className="upload-container">
@@ -160,7 +272,7 @@ export default function Upload() {
                     <div className="file-preview">
                         <div className="file-left">
                             <FileText size={20} />
-                            <span>{file.name}</span>
+                            <span>{file?.name || "Uploading..."}</span>
                         </div>
 
                         <button
@@ -182,10 +294,12 @@ export default function Upload() {
                 </button>
 
                 {/* Progress */}
-                {uploading && file && (
+                {activeUploadId && (
                     <div className="progress-card">
                         <div className="file-info">
-                            <span>{file.name}</span>
+                            <span>
+                                {history.find(h => h.id === activeUploadId)?.fileName || "Uploading..."}
+                            </span>
                             <span>{progress}%</span>
                         </div>
 

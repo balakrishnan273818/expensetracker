@@ -1,5 +1,7 @@
 import pandas as pd
 import os
+from datetime import datetime
+import pytz
 
 from db import DB_POOL
 from services.categorization_service import categorize_transaction
@@ -9,6 +11,10 @@ from repositories.merchant_rule_repo import load_rules, load_merchant_patterns
 RULES = load_rules()
 PATTERNS = load_merchant_patterns()
 
+UTC = pytz.utc
+
+def now_utc():
+    return datetime.now(UTC)
 
 def detect_engine(file):
 
@@ -114,12 +120,14 @@ def insert_records(records):
     conn = DB_POOL.getconn()
     cur = conn.cursor()
 
+    uploaded_at = now_utc()  # ✅ single consistent timestamp for this upload batch
+
     for r in records:
 
         cur.execute("""
         INSERT INTO transactions
-        (date, amount, description, merchant, category, sub_category, account, source)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        (date, amount, description, merchant, category, sub_category, account, source, uploaded_at)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT DO NOTHING
         """, (
             r["date"],
@@ -129,7 +137,8 @@ def insert_records(records):
             r["category"],
             r["sub_category"],
             r["account"],
-            "bank_import"
+            "bank_import",
+            uploaded_at   # ✅ correct UTC timestamp
         ))
 
     conn.commit()

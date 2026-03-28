@@ -1,5 +1,7 @@
 from db import DB_POOL
 from datetime import datetime
+import pytz
+
 
 def insert_upload_history(file_name, bank, file_size, transactions_added, status):
 
@@ -10,15 +12,16 @@ def insert_upload_history(file_name, bank, file_size, transactions_added, status
 
         cur.execute("""
             INSERT INTO upload_history
-            (file_name, bank, uploaded_at, file_size, transactions_added, status)
-            VALUES (%s,%s,%s,%s,%s,%s)
+            (file_name, bank, uploaded_at, file_size, transactions_added, total_records, status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
             RETURNING id
         """, (
             file_name,
             bank,
-            datetime.utcnow(),
+            datetime.now(pytz.utc),
             file_size,
             transactions_added,
+            0,
             status
         ))
 
@@ -52,9 +55,11 @@ def fetch_upload_history():
                 uploaded_at,
                 file_size,
                 transactions_added,
+                total_records,
+                processed_records,
                 status
             FROM upload_history
-            ORDER BY uploaded_at DESC
+            ORDER BY id DESC
             LIMIT 50
         """)
 
@@ -66,7 +71,35 @@ def fetch_upload_history():
     finally:
         DB_POOL.putconn(conn)
 
-def update_upload_status(upload_id, status, transactions_added):
+def update_upload_progress(upload_id, processed_records, total_records=None):
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE upload_history
+            SET processed_records = %s,
+                total_records = COALESCE(%s, total_records)
+            WHERE id = %s
+        """, (
+            processed_records,
+            total_records,
+            upload_id
+        ))
+
+        conn.commit()
+        cur.close()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        DB_POOL.putconn(conn)
+
+def update_upload_status(upload_id, status, transactions_added, total_records=None):
 
     conn = DB_POOL.getconn()
 
@@ -76,12 +109,22 @@ def update_upload_status(upload_id, status, transactions_added):
         cur.execute("""
             UPDATE upload_history
             SET status = %s,
-                transactions_added = %s
+                transactions_added = %s,
+                total_records = COALESCE(%s, total_records)
             WHERE id = %s
-        """, (status, transactions_added, upload_id))
+        """, (
+            status,
+            transactions_added,
+            total_records,
+            upload_id
+        ))
 
         conn.commit()
         cur.close()
+
+    except Exception:
+        conn.rollback()
+        raise
 
     finally:
         DB_POOL.putconn(conn)

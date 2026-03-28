@@ -5,6 +5,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import pandas as pd
+import pytz
 
 from repositories.transaction_repo import (
     fetch_transactions,
@@ -26,6 +27,7 @@ CORS(app)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
 def detect_bank(file_path, fallback_bank=None):
 
     try:
@@ -44,11 +46,13 @@ def detect_bank(file_path, fallback_bank=None):
 
     return fallback_bank
 
+
 def process_upload(file_path, bank, upload_id):
 
     try:
-        result = ingest_file(file_path, bank)
+        result = ingest_file(file_path, bank, upload_id)
 
+        # ✅ ONLY here success should be set
         update_upload_status(
             upload_id,
             "success",
@@ -108,41 +112,21 @@ def upload_file():
         args=(file_path, detected_bank, upload_id)
     ).start()
 
-    # ✅ Immediate response
+    # ✅ IMPORTANT FIX: return upload_id
     return jsonify({
+        "id": upload_id,   # 🔥 critical fix
         "file_name": filename,
         "bank": detected_bank,
-        "uploaded_at": datetime.utcnow().isoformat(),
+        "uploaded_at": datetime.now(pytz.utc).isoformat(),
         "file_size": file_size,
         "transactions_added": 0,
+        "total_records": 0,
         "status": "processing"
     })
 
 
-# @app.route("/api/upload", methods=["POST"])
-# def upload_file():
-#     if "file" not in request.files:
-#         return {"error": "No file"}, 400
-#
-#     file = request.files["file"]
-#     bank = request.form.get("bank")  # ✅ REQUIRED
-#
-#     if not bank:
-#         return {"error": "bank is required (axis/hdfc/idfc)"}, 400
-#
-#     filename = secure_filename(file.filename)
-#     file_path = os.path.join(UPLOAD_FOLDER, filename)
-#
-#     file.save(file_path)
-#
-#     # 🔥 Run ingestion in background (non-blocking)
-#     threading.Thread(target=ingest_file, args=(file_path, bank)).start()
-#
-#     return {"status": "processing started"}
-
-
 # ==============================
-# HEALTH CHECK
+# UPLOAD HISTORY
 # ==============================
 
 @app.route("/api/upload/history", methods=["GET"])
@@ -160,6 +144,8 @@ def get_upload_history():
             uploaded_at,
             file_size,
             transactions_added,
+            total_records,
+            processed_records,
             status
         ) = r
 
@@ -167,13 +153,16 @@ def get_upload_history():
             "id": id,
             "file_name": file_name,
             "bank": bank,
-            "uploaded_at": uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "uploaded_at": uploaded_at.isoformat(),
             "file_size": file_size,
             "transactions_added": transactions_added,
+            "total_records": total_records,
+            "processed_records": processed_records,
             "status": status
         })
 
     return jsonify(history)
+
 
 @app.route("/")
 def home():
@@ -183,6 +172,7 @@ def home():
 # ==============================
 # TRANSACTIONS APIs
 # ==============================
+
 @app.route("/api/transactions", methods=["GET"])
 def get_transactions():
     rows = fetch_transactions()
@@ -223,12 +213,12 @@ def get_transactions():
 
     return jsonify(transactions)
 
+
 @app.route("/api/transactions/add", methods=["POST"])
 def add_transaction():
     try:
         data = request.get_json(silent=True) or {}
 
-        # 🔒 Validation
         required_fields = ["amount", "type", "category", "date"]
         for field in required_fields:
             if field not in data:
@@ -236,7 +226,6 @@ def add_transaction():
 
         amount = float(data.get("amount"))
 
-        # Normalize type → amount sign
         if data.get("type") == "expense" and amount > 0:
             amount = -amount
         elif data.get("type") == "income" and amount < 0:
@@ -247,13 +236,12 @@ def add_transaction():
             "amount": amount,
             "category": data.get("category"),
             "sub_category": data.get("sub_category") or data.get("subcategory"),
-            "mode": "cash",   # 🔥 force cash
-            "bank": None,     # 🔥 critical
+            "mode": "cash",
+            "bank": None,
             "description": data.get("description"),
             "remarks": data.get("remarks")
         }
 
-        # 👉 call repo (you’ll add this next)
         from repositories.transaction_repo import create_transaction
         created_id = create_transaction(tx)
 
@@ -265,6 +253,7 @@ def add_transaction():
     except Exception as e:
         print("Add transaction failed:", str(e))
         return jsonify({"error": "Failed to create transaction"}), 500
+
 
 @app.route("/api/transactions/<int:txn_id>", methods=["PATCH"])
 def update_transaction(txn_id):
@@ -320,6 +309,7 @@ def update_remarks(txn_id):
 
     return jsonify({"success": True})
 
+
 @app.route("/api/transactions/<int:txn_id>", methods=["DELETE"])
 def delete_transaction(txn_id):
     try:
@@ -330,7 +320,6 @@ def delete_transaction(txn_id):
         if not tx:
             return jsonify({"error": "Transaction not found"}), 404
 
-        # 🔒 Only allow cash delete
         if tx["mode"] != "cash":
             return jsonify({"error": "Only cash transactions can be deleted"}), 400
 
@@ -342,9 +331,11 @@ def delete_transaction(txn_id):
         print("Delete failed:", str(e))
         return jsonify({"error": "Failed to delete transaction"}), 500
 
+
 # ==============================
 # BUDGET APIs
 # ==============================
+
 @app.route("/api/budgets", methods=["GET"])
 def get_budgets():
     month = request.args.get("month")
@@ -390,5 +381,6 @@ def save_budgets():
 # ==============================
 # LOCAL RUN
 # ==============================
+
 if __name__ == "__main__":
     app.run(debug=True)

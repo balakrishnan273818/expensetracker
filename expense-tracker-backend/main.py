@@ -12,10 +12,15 @@ from repositories.merchant_rule_repo import (
     load_aliases,
     load_family_alias
 )
+from repositories.upload_repo import update_upload_status
 from services.categorization_service import (
     categorize_transaction,
     derive_payment_method
 )
+
+import pytz
+
+IST = pytz.timezone("Asia/Kolkata")
 
 
 # Suppress openpyxl warnings
@@ -65,8 +70,12 @@ def process_records(records, ctx):
             ctx
         )
 
+        dt_naive = datetime.strptime(normalized_date, "%Y-%m-%d")
+        dt_ist = IST.localize(dt_naive)
+        dt_utc = dt_ist.astimezone(pytz.utc)
+
         insert_transaction((
-            normalized_date,
+            dt_utc,
             float(r["amount"]),
             r["description"],
             r["bank"],
@@ -79,7 +88,7 @@ def process_records(records, ctx):
 
 
 # ==============================
-# CORE ENGINE (NEW)
+# CORE ENGINE
 # ==============================
 def create_context():
     rules = load_rules()
@@ -90,23 +99,9 @@ def create_context():
     return EngineContext(rules, patterns, aliases, family_alias)
 
 
-# def ingest_file(file_path, bank):
-#     """
-#     Main function to ingest a single uploaded file
-#     """
-#     print(f"Processing file: {file_path}, bank: {bank}")
-#     ctx = create_context()
-#
-#     if bank not in PARSER_MAP:
-#         raise ValueError(f"Unsupported bank: {bank}")
-#
-#     parser_module = importlib.import_module(PARSER_MAP[bank])
-#
-#     records = parser_module.parse(file_path)
-#
-#     process_records(records, ctx)
+def ingest_file(file_path, bank, upload_id=None):
 
-def ingest_file(file_path, bank):
+    from repositories.upload_repo import update_upload_progress  # ✅ NEW IMPORT
 
     ctx = create_context()
 
@@ -117,8 +112,19 @@ def ingest_file(file_path, bank):
     records = parser_module.parse(file_path)
 
     inserted_count = 0
+    processed_count = 0  # ✅ NEW
+    total_records = len(records)
+
+    # ✅ initialize progress (set total early)
+    if upload_id:
+        update_upload_progress(upload_id, 0, total_records)
+        update_upload_status(upload_id, "processing", 0, total_records)
+
+    BATCH_SIZE = 5  # ✅ tune if needed
 
     for r in records:
+        processed_count += 1  # ✅ track ALL processed rows
+
         try:
             normalized_date = normalize_date(r["date"])
         except Exception:
@@ -130,11 +136,15 @@ def ingest_file(file_path, bank):
             ctx
         )
 
+        dt_naive = datetime.strptime(normalized_date, "%Y-%m-%d")
+        dt_ist = IST.localize(dt_naive)
+        dt_utc = dt_ist.astimezone(pytz.utc)
+
         inserted = insert_transaction((
-            normalized_date,
+            dt_utc,
             float(r["amount"]),
             r["description"],
-            r["bank"],  # comes from parser
+            r["bank"],
             derive_payment_method(r["description"]),
             merchant,
             tx_type,
@@ -145,10 +155,34 @@ def ingest_file(file_path, bank):
         if inserted:
             inserted_count += 1
 
+        # ✅ REAL progress update (based on processed_count, NOT inserted_count)
+        if upload_id and processed_count % BATCH_SIZE == 0:
+            update_upload_progress(upload_id, processed_count)
+
+            update_upload_status(
+                upload_id,
+                "processing",
+                inserted_count,
+                total_records
+            )
+
+    # ✅ final progress sync
+    if upload_id:
+        update_upload_progress(upload_id, processed_count)
+
+        # ✅ final status update (keep your existing logic intact)
+        update_upload_status(
+            upload_id,
+            "success",
+            inserted_count,
+            total_records
+        )
+
     return inserted_count
 
+
 # ==============================
-# OPTIONAL (OLD BEHAVIOR)
+# OPTIONAL
 # ==============================
 def ingest_folder(base_folder="statements"):
     ctx = create_context()
@@ -167,8 +201,9 @@ def ingest_folder(base_folder="statements"):
                 records = parser.parse(full_path)
                 process_records(records, ctx)
 
+
 # ==============================
-# LOCAL RUN (OPTIONAL)
+# LOCAL RUN
 # ==============================
 if __name__ == "__main__":
     ingest_folder()

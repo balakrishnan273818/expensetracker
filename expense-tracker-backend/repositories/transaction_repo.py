@@ -1,4 +1,12 @@
 from db import DB_POOL
+from datetime import datetime
+import pytz
+
+
+def to_utc(dt_naive):
+    IST = pytz.timezone("Asia/Kolkata")
+    return IST.localize(dt_naive).astimezone(pytz.utc)
+
 
 def learn_merchant_rule(txn_id):
 
@@ -38,19 +46,19 @@ def learn_merchant_rule(txn_id):
             sub_category,
             amount
         ))
-        print("RULE UPDATED:", merchant_key, tx_type, category, sub_category)
+
         conn.commit()
         cur.close()
 
     finally:
         DB_POOL.putconn(conn)
 
+
 def fetch_transactions():
 
     conn = DB_POOL.getconn()
 
     try:
-
         cur = conn.cursor()
 
         cur.execute("""
@@ -70,7 +78,6 @@ def fetch_transactions():
         """)
 
         rows = cur.fetchall()
-
         cur.close()
 
         return rows
@@ -78,12 +85,12 @@ def fetch_transactions():
     finally:
         DB_POOL.putconn(conn)
 
+
 def update_transaction_category(txn_id, category, sub_category, txn_type):
 
     conn = DB_POOL.getconn()
 
     try:
-
         cur = conn.cursor()
 
         cur.execute("""
@@ -92,17 +99,16 @@ def update_transaction_category(txn_id, category, sub_category, txn_type):
                 sub_category = %s,
                 type = %s
             WHERE id = %s
-        """, (category, sub_category,txn_type, txn_id))
+        """, (category, sub_category, txn_type, txn_id))
 
         conn.commit()
-
         cur.close()
 
     finally:
         DB_POOL.putconn(conn)
 
-    # learning step
     learn_merchant_rule(txn_id)
+
 
 def bulk_update_transactions(ids, updates):
 
@@ -117,7 +123,6 @@ def bulk_update_transactions(ids, updates):
         set_clauses = []
         values = []
 
-        # Build dynamic SET clause
         if "category" in updates:
             set_clauses.append("category = %s")
             values.append(updates["category"])
@@ -135,7 +140,6 @@ def bulk_update_transactions(ids, updates):
 
         set_query = ", ".join(set_clauses)
 
-        # PostgreSQL syntax (you are using psycopg2)
         query = f"""
             UPDATE transactions
             SET {set_query}
@@ -148,7 +152,6 @@ def bulk_update_transactions(ids, updates):
         conn.commit()
 
         updated_count = cur.rowcount
-
         cur.close()
 
     except Exception:
@@ -158,7 +161,6 @@ def bulk_update_transactions(ids, updates):
     finally:
         DB_POOL.putconn(conn)
 
-    # 🔥 CRITICAL: Learning step (this fixes your original problem)
     for txn_id in ids:
         learn_merchant_rule(txn_id)
 
@@ -185,7 +187,7 @@ def insert_transaction(record):
         conn.commit()
         cur.close()
 
-        return result is not None  # ✅ True if inserted
+        return result is not None
 
     except Exception:
         conn.rollback()
@@ -194,12 +196,12 @@ def insert_transaction(record):
     finally:
         DB_POOL.putconn(conn)
 
+
 def update_transaction_remarks(txn_id, remarks):
 
     conn = DB_POOL.getconn()
 
     try:
-
         cur = conn.cursor()
 
         cur.execute("""
@@ -209,7 +211,6 @@ def update_transaction_remarks(txn_id, remarks):
         """, (remarks, txn_id))
 
         conn.commit()
-
         cur.close()
 
     except Exception:
@@ -219,13 +220,19 @@ def update_transaction_remarks(txn_id, remarks):
     finally:
         DB_POOL.putconn(conn)
 
+
 # ==============================
-# NEW: Manual (Cash) Transaction APIs
+# Manual (Cash) Transactions
 # ==============================
 
 def create_transaction(tx):
 
     conn = DB_POOL.getconn()
+    IST = pytz.timezone("Asia/Kolkata")
+
+    dt_naive = datetime.strptime(tx["date"], "%Y-%m-%d")
+    dt_ist = IST.localize(dt_naive)
+    dt_utc = dt_ist.astimezone(pytz.utc)
 
     try:
         cur = conn.cursor()
@@ -236,15 +243,15 @@ def create_transaction(tx):
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
             RETURNING id
         """, (
-            tx["date"],
+            dt_utc,
             tx["amount"],
             tx["category"],
             tx["sub_category"],
-            tx["mode"],          # should be "cash"
-            tx["bank"],          # should be None
+            tx["mode"],
+            tx["bank"],
             tx.get("description"),
             tx.get("remarks"),
-            tx.get("type")       # optional but good to store
+            tx.get("type")
         ))
 
         result = cur.fetchone()
@@ -252,7 +259,7 @@ def create_transaction(tx):
         conn.commit()
         cur.close()
 
-        return result[0]  # return id
+        return result[0]
 
     except Exception:
         conn.rollback()
@@ -276,7 +283,6 @@ def get_transaction_by_id(txn_id):
         """, (txn_id,))
 
         row = cur.fetchone()
-
         cur.close()
 
         if not row:
