@@ -73,9 +73,12 @@ export default function Transactions() {
                 const normalized = data.map(tx => {
                     const parsed = tx.date ? parseISO(tx.date) : null;
                     const valid = parsed && isValid(parsed);
+                    // ✅ STEP 1: normalize type
+                    const rawType = (tx.type || "").toLowerCase();
 
                     return {
                         ...tx,
+                        type: tx.type,
                         subcategory: tx.subcategory ?? tx.sub_category,
                         parsedDate: valid ? parsed : null,
                         formattedDate: valid ? format(parsed, "dd MMM yyyy") : "-",
@@ -146,6 +149,9 @@ export default function Transactions() {
                 (tx.subcategory || "").toLowerCase().includes(
                     effectiveFilters.subcategory.toLowerCase()
                 );
+            const typeMatch =
+                !effectiveFilters.type ||
+                tx.type === effectiveFilters.type.toLowerCase();
 
             return (
                 // DATE
@@ -156,9 +162,7 @@ export default function Transactions() {
                 inAmountRange &&
 
                 // TYPE
-                (!effectiveFilters.type ||
-                    (tx.type || "").toLowerCase().includes(effectiveFilters.type.toLowerCase())
-                ) &&
+                typeMatch &&
 
                 // CATEGORY
                 categoryMatch &&
@@ -203,17 +207,22 @@ export default function Transactions() {
                 const count = data.length;
 
                 let expense = 0;
-                let investment = 0;
+                let investments = 0;
                 let income = 0;
 
                 data.forEach(tx => {
                     const type = (tx.type || "").toLowerCase();
                     const amount = Math.abs(tx.amount);
+                    const category = (tx.category || "").toLowerCase();
 
                     if (type === "expense") {
                         expense += amount;
-                    } else if (type === "investment") {
-                        investment += amount;
+
+                        // ✅ investments is subset of expense
+                        if (category === "investments") {
+                            investments += amount;
+                        }
+
                     } else if (type === "income") {
                         income += amount;
                     }
@@ -223,7 +232,7 @@ export default function Transactions() {
                     label: `Week ${week}`,
                     count,
                     expense,
-                    investment,
+                    investments,
                     income,
                     data
                 };

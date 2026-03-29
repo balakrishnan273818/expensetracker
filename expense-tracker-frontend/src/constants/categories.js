@@ -1,4 +1,4 @@
-import { normalizeCategory } from "../utils/categories";
+import {normalizeCategory} from "../utils/categories";
 
 export const categoryOptions = [
     "Food",
@@ -104,10 +104,10 @@ const rawSubcategoryMap = {
         "Dividend",
         "Others"
     ],
-    Entertainment:[
-      "Tourism",
-      "Movie Tickets",
-      "Others"
+    Entertainment: [
+        "Tourism",
+        "Movie Tickets",
+        "Others"
     ],
 
     Others: [
@@ -115,6 +115,7 @@ const rawSubcategoryMap = {
         "Charity",
         "Self Care",
         "Education",
+        "Gifts",
         "Others"
     ]
 };

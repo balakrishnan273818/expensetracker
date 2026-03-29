@@ -307,7 +307,7 @@ export default function TransactionsTable({
                         <option value="">All Types</option>
                         <option value="expense">Debit</option>
                         <option value="income">Credit</option>
-                        <option value="investment">Investment</option>
+                        <option value="transfer">Transfer</option>
                     </select>
 
                     {/* Category */}
@@ -500,7 +500,7 @@ export default function TransactionsTable({
         <span className="px-3 py-1 rounded-full text-sm font-medium
             bg-blue-100 text-blue-700
             dark:bg-blue-900 dark:text-blue-300 text-right w-full">
-            {formatCurrency(group.investment || 0)}
+            {formatCurrency(group.investments || 0)}
         </span>
                                                 </div>
 
