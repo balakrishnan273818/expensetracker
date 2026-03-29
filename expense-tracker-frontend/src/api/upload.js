@@ -10,9 +10,9 @@ export async function uploadFile(file, bank, setProgress) {
 
         xhr.open("POST", `${API_BASE}/api/upload`);
 
-        // Track upload progress
+        // ✅ SAFE: only call if provided
         xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
+            if (event.lengthComputable && typeof setProgress === "function") {
                 const percent = Math.round(
                     (event.loaded * 100) / event.total
                 );

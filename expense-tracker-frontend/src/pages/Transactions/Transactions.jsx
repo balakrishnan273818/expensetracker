@@ -1,28 +1,27 @@
-import { useState, useEffect, useMemo } from "react";
-//import { useSearchParams } from "react-router-dom";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import {useState, useEffect, useMemo} from "react";
+import {useSearchParams, useNavigate} from "react-router-dom";
 import {
     getTransactions,
     updateTransactionCategory,
     createTransaction,
     deleteTransaction as deleteTransactionAPI
 } from "../../api/transactions";
-import { parseISO, format, isValid } from "date-fns";
-import { Pencil, RotateCcw, Download, Plus, ArrowLeft } from "lucide-react";
-import { Minimize2, Maximize2 } from "lucide-react";
+import {parseISO, format, isValid} from "date-fns";
+import {Pencil, RotateCcw, Download, Plus, ArrowLeft} from "lucide-react";
+import {Minimize2, Maximize2} from "lucide-react";
 import * as XLSX from "xlsx";
 
 import TransactionsTable from "./TransactionsTable";
 import EditTransactionModal from "./EditTransactionModal";
 import PageHeader from "../../components/common/PageHeader";
-import { useMonth } from "../../context/MonthContext";
-import { useToast } from "../../context/ToastContext";
+import {useMonth} from "../../context/MonthContext";
+import {useToast} from "../../context/ToastContext";
 
 export default function Transactions() {
 
     const navigate = useNavigate();
-    const { year, month, setYear, setMonth } = useMonth();
-    const { addToast } = useToast();
+    const {year, month, setYear, setMonth} = useMonth();
+    const {addToast} = useToast();
 
     const [searchParams] = useSearchParams();
 
@@ -35,18 +34,28 @@ export default function Transactions() {
     const queryDate = searchParams.get("date") || "";
     const queryCategory = searchParams.get("category") || "";
 
-    // ✅ UI-controlled filters
+    // ✅ PREMIUM FILTERS
     const [filters, setFilters] = useState({
         date: queryDate,
+        fromDate: "",
+        toDate: "",
+
+        minAmount: "",
+        maxAmount: "",
+
         type: "",
         category: queryCategory,
+        subcategory: "",
         mode: "",
         bank: "",
+
+        search: "",
+
+        // backward compatibility
         remarks: "",
         description: ""
     });
 
-    // ✅ Derived filters (no setState in effect)
     const effectiveFilters = useMemo(() => {
         return {
             ...filters,
@@ -86,7 +95,7 @@ export default function Transactions() {
         loadTransactions();
     }, []);
 
-    // ✅ Filtering (FIXED)
+    // ✅ PREMIUM FILTERING
     const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
 
@@ -95,57 +104,88 @@ export default function Transactions() {
             const txMonth = tx.parsedDate.getMonth();
             const txYear = tx.parsedDate.getFullYear();
 
-            // ✅ FIXED DATE (no ISO)
             const y = tx.parsedDate.getFullYear();
             const m = String(tx.parsedDate.getMonth() + 1).padStart(2, "0");
             const d = String(tx.parsedDate.getDate()).padStart(2, "0");
             const txDateStr = `${y}-${m}-${d}`;
 
+            // ✅ DATE
+            const inDateRange =
+                (!effectiveFilters.fromDate || txDateStr >= effectiveFilters.fromDate) &&
+                (!effectiveFilters.toDate || txDateStr <= effectiveFilters.toDate);
+
+            const exactDate =
+                !effectiveFilters.date || txDateStr === effectiveFilters.date;
+
+            // ✅ AMOUNT
+            const rawAmount = Number(tx.amount) || 0;
+            const amount = Math.abs(rawAmount);
+
+            const inAmountRange =
+                (!effectiveFilters.minAmount || amount >= Number(effectiveFilters.minAmount)) &&
+                (!effectiveFilters.maxAmount || amount <= Number(effectiveFilters.maxAmount));
+
+            // ✅ SMART SEARCH
+            const searchText = (effectiveFilters.search || "").toLowerCase();
+
+            const matchesSearch =
+                !searchText ||
+                (tx.remarks || "").toLowerCase().includes(searchText) ||
+                (tx.description || "").toLowerCase().includes(searchText);
+
+            // CATEGORY (flexible match)
+            const categoryMatch =
+                !effectiveFilters.category ||
+                (tx.category || "").toLowerCase().includes(
+                    effectiveFilters.category.toLowerCase()
+                );
+
+            // SUBCATEGORY (new support)
+            const subcategoryMatch =
+                !effectiveFilters.subcategory ||
+                (tx.subcategory || "").toLowerCase().includes(
+                    effectiveFilters.subcategory.toLowerCase()
+                );
+
             return (
-                // ✅ DATE FILTER
-                (!effectiveFilters.date || txDateStr === effectiveFilters.date) &&
+                // DATE
+                (exactDate && inDateRange) &&
                 (effectiveFilters.date || (txMonth === month && txYear === year)) &&
 
-                // ✅ TYPE
+                // AMOUNT
+                inAmountRange &&
+
+                // TYPE
                 (!effectiveFilters.type ||
                     (tx.type || "").toLowerCase().includes(effectiveFilters.type.toLowerCase())
                 ) &&
 
-                // ✅ CATEGORY (FIXED STRICT MATCH)
-                (!effectiveFilters.category ||
-                    (tx.category || "").toLowerCase().trim() ===
-                    effectiveFilters.category.toLowerCase().trim()
-                ) &&
+                // CATEGORY
+                categoryMatch &&
+                subcategoryMatch &&
 
-                // ✅ MODE
+                // MODE
                 (!effectiveFilters.mode ||
                     (tx.mode || "").includes(effectiveFilters.mode.toLowerCase())
                 ) &&
 
-                // ✅ BANK
+                // BANK
                 (!effectiveFilters.bank || (
                     tx.isCash
                         ? "cash".includes(effectiveFilters.bank.toLowerCase())
                         : (tx.bank || "").toLowerCase().includes(effectiveFilters.bank.toLowerCase())
                 )) &&
 
-                // ✅ REMARKS
-                (!effectiveFilters.remarks ||
-                    (tx.remarks || "").toLowerCase().includes(effectiveFilters.remarks.toLowerCase())
-                ) &&
-
-                // ✅ DESCRIPTION
-                (!effectiveFilters.description ||
-                    (tx.description || "").toLowerCase().includes(effectiveFilters.description.toLowerCase())
-                )
+                // SEARCH
+                matchesSearch
             );
         });
     }, [transactions, effectiveFilters, month, year]);
 
-    // ✅ Grouping with totals
+    // ✅ GROUPING
     const groupedTransactions = useMemo(() => {
 
-        const weeks = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+        const weeks = {1: [], 2: [], 3: [], 4: [], 5: []};
 
         filteredTransactions.forEach(tx => {
             const day = tx.parsedDate.getDate();
@@ -162,20 +202,29 @@ export default function Transactions() {
 
                 const count = data.length;
 
-                const total = data.reduce((sum, tx) => {
+                let expense = 0;
+                let investment = 0;
+                let income = 0;
+
+                data.forEach(tx => {
                     const type = (tx.type || "").toLowerCase();
+                    const amount = Math.abs(tx.amount);
 
-                    if (type === "expense" || type === "investment") {
-                        return sum - Math.abs(tx.amount);
+                    if (type === "expense") {
+                        expense += amount;
+                    } else if (type === "investment") {
+                        investment += amount;
+                    } else if (type === "income") {
+                        income += amount;
                     }
-
-                    return sum; // ignore income / transfer
-                }, 0);
+                });
 
                 return {
                     label: `Week ${week}`,
                     count,
-                    total,
+                    expense,
+                    investment,
+                    income,
                     data
                 };
             })
@@ -282,7 +331,7 @@ export default function Transactions() {
                 setTransactions(prev =>
                     prev.map(tx =>
                         selectedTxIds.has(tx.id)
-                            ? { ...tx, ...activeTx }
+                            ? {...tx, ...activeTx}
                             : tx
                     )
                 );
@@ -301,7 +350,7 @@ export default function Transactions() {
                 setTransactions(prev =>
                     prev.map(tx =>
                         tx.id === activeTx.id
-                            ? { ...tx, ...activeTx }
+                            ? {...tx, ...activeTx}
                             : tx
                     )
                 );
@@ -315,20 +364,23 @@ export default function Transactions() {
     }
 
     function resetFilters() {
-
-        // ✅ Clear UI filters
         setFilters({
             date: "",
+            fromDate: "",
+            toDate: "",
+            minAmount: "",
+            maxAmount: "",
             type: "",
             category: "",
+            subcategory: "",
             mode: "",
             bank: "",
+            search: "",
             remarks: "",
             description: ""
         });
 
-        // ✅ Clear URL params
-        navigate("/transactions", { replace: true });
+        navigate("/transactions", {replace: true});
     }
 
     // ✅ Download
@@ -356,7 +408,6 @@ export default function Transactions() {
             }
 
             const worksheet = XLSX.utils.json_to_sheet(flatData);
-
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
 
@@ -369,19 +420,25 @@ export default function Transactions() {
             addToast("Download failed", "error");
         }
     }
-    const [collapsedGroups, setCollapsedGroups] = useState(new Set());
-    function toggleAllGroups() {
 
+    const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+
+    function toggleAllGroups() {
         if (collapsedGroups.size === groupedTransactions.length) {
-            // Expand all
             setCollapsedGroups(new Set());
         } else {
-            // Collapse all
-            setCollapsedGroups(
-                new Set(groupedTransactions.map(g => g.label))
-            );
+            setCollapsedGroups(new Set(groupedTransactions.map(g => g.label)));
         }
     }
+
+    const actionBtnClass = `
+    p-2 rounded-md
+    bg-gray-200 text-gray-800
+    hover:bg-gray-300
+    dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
+    focus:outline-none focus:ring-2 focus:ring-blue-500
+    transition
+    `;
 
     return (
         <div className="flex flex-col h-[calc(100vh-120px)] w-full">
@@ -394,80 +451,43 @@ export default function Transactions() {
                 setMonth={setMonth}
                 actions={
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 rounded-md
-                                bg-gray-200 text-gray-800
-                                hover:bg-gray-300
-                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
-                                focus:outline-none focus:ring-2 focus:ring-blue-500
-                                transition"
-                        >
-                            <ArrowLeft size={16} />
-                        </button>
-                        <button
-                            onClick={() => setActiveTx({
-                                isNew: true,
-                                mode: "cash",
-                                type: "expense",
-                                category: "Others",
-                                date: new Date().toISOString().slice(0, 10)
-                            })}
-                            className="p-2 rounded-md
-                                bg-gray-200 text-gray-800
-                                hover:bg-gray-300
-                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
-                                focus:outline-none focus:ring-2 focus:ring-blue-500
-                                transition"
-                        >
-                            <Plus size={16} />
+                        <button onClick={() => navigate(-1)} className="p-2 rounded-md bg-gray-200 dark:bg-gray-700">
+                            <ArrowLeft size={16}/>
                         </button>
 
-                        <button onClick={() => setEditMode(prev => !prev)}
-                                className={`p-2 rounded-md transition
-                                    ${editMode
-                                    ? "bg-blue-600 text-white hover:bg-blue-500"
-                                    : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                                }`}
-                        >
-                            <Pencil size={16} />
+                        <button onClick={() => setActiveTx({
+                            isNew: true,
+                            mode: "cash",
+                            type: "expense",
+                            category: "Others",
+                            date: new Date().toISOString().slice(0, 10)
+                        })} className="p-2 rounded-md bg-gray-200 dark:bg-gray-700">
+                            <Plus size={16}/>
                         </button>
 
-                        <button onClick={handleDownload}
-                                className="p-2 rounded-md
-                                bg-gray-200 text-gray-800
-                                hover:bg-gray-300
-                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
-                                focus:outline-none focus:ring-2 focus:ring-blue-500
-                                transition"
-                        >
-                            <Download size={16} />
-                        </button>
-
-                        <button onClick={resetFilters}
-                                className="p-2 rounded-md
-                                bg-gray-200 text-gray-800
-                                hover:bg-gray-300
-                                dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
-                                focus:outline-none focus:ring-2 focus:ring-blue-500
-                                transition"
-                        >
-                            <RotateCcw size={16} />
-                        </button>
                         <button
-                            onClick={toggleAllGroups}
-                            title={collapsedGroups.size === groupedTransactions.length ? "Expand All" : "Collapse All"}
-                            className="p-2 rounded-md
-                                        bg-gray-200 text-gray-800
-                                        hover:bg-gray-300
-                                        dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600
-                                        focus:outline-none focus:ring-2 focus:ring-blue-500
-                                        transition"
+                            onClick={() => setEditMode(prev => !prev)}
+                            className={`p-2 rounded-md transition
+                            ${editMode
+                                ? "bg-blue-600 text-white hover:bg-blue-500"
+                                : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                            }`}
                         >
+                            <Pencil size={16}/>
+                        </button>
+
+                        <button onClick={handleDownload} className={actionBtnClass}>
+                            <Download size={16}/>
+                        </button>
+
+                        <button onClick={resetFilters} className={actionBtnClass}>
+                            <RotateCcw size={16}/>
+                        </button>
+
+                        <button onClick={toggleAllGroups} className={actionBtnClass}>
                             {collapsedGroups.size === groupedTransactions.length
-                                ? <Maximize2 size={16} />   // Expand
-                                : <Minimize2 size={16} />   // Collapse
-                            }
+                                ? <Maximize2 size={16}/>
+                                : <Minimize2 size={16}/>}
                         </button>
                     </div>
                 }
@@ -498,7 +518,6 @@ export default function Transactions() {
                     onSave={saveCategoryUpdate}
                 />
             )}
-
         </div>
     );
 }

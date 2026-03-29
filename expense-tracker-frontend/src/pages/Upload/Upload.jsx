@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { uploadFile, getUploadHistory } from "../../api/upload";
 import { formatDateTime } from "../../utils/date";
+
 import {
     UploadCloud,
     FileText,
@@ -31,6 +32,8 @@ export default function Upload() {
     const [activeUploadId, setActiveUploadId] = useState(null);
     const [totalTxns, setTotalTxns] = useState(null);
     const [uploadCompleted, setUploadCompleted] = useState(false);
+    const [showSuccessMsg, setShowSuccessMsg] = useState(false);
+    const [completedUploadId, setCompletedUploadId] = useState(null);
 
     useEffect(() => {
         loadHistory();
@@ -76,6 +79,8 @@ export default function Upload() {
                 }
             }
 
+
+
             setHistory((prev) => {
                 const map = new Map(prev.map((h) => [h.id, h]));
 
@@ -110,18 +115,14 @@ export default function Upload() {
                     }
 
                     // ✅ NEW: completion acknowledgement (minimal change)
-                    if (current.status === "success" && !uploadCompleted) {
-                        setUploadCompleted(true);
+                    if (current.status === "success" && completedUploadId !== current.id) {
+                        setCompletedUploadId(current.id);
+                        setShowSuccessMsg(true);
 
                         setTimeout(() => {
-                            alert("Upload completed successfully");
-
-                            // remove progress bar
                             setActiveUploadId(null);
-
-                            // reset flag
-                            setUploadCompleted(false);
-                        }, 100);
+                            setShowSuccessMsg(false);
+                        }, 3000);
                     }
                 }
             }
@@ -292,6 +293,22 @@ export default function Upload() {
                 >
                     {uploading ? "Uploading..." : "Upload"}
                 </button>
+
+                {showSuccessMsg && (
+                    <div
+                        style={{
+                            background: "#dcfce7",
+                            color: "#166534",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            marginBottom: "12px",
+                            fontSize: "14px",
+                            fontWeight: 500
+                        }}
+                    >
+                        Upload completed successfully ✅
+                    </div>
+                )}
 
                 {/* Progress */}
                 {activeUploadId && (
