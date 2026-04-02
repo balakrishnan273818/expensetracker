@@ -57,6 +57,8 @@ const rawSubcategoryMap = {
         "Flights",
         "Train",
         "Bus",
+        "Metro",
+        "Parking Tickets",
         "Others"
     ],
 
@@ -67,6 +69,7 @@ const rawSubcategoryMap = {
         "Subscription",
         "Gas",
         "Rent",
+        "Fuel",
         "Charges",
         "Credit Card",
         "Insurance",
@@ -116,6 +119,7 @@ const rawSubcategoryMap = {
         "Self Care",
         "Education",
         "Gifts",
+        "Service & Repair",
         "Others"
     ]
 };

@@ -29,6 +29,7 @@ export default function Transactions() {
     const [editMode, setEditMode] = useState(false);
     const [activeTx, setActiveTx] = useState(null);
     const [selectedTxIds, setSelectedTxIds] = useState(new Set());
+    const [focusedTxId, setFocusedTxId] = useState(null);
 
     // ✅ Query params
     const queryDate = searchParams.get("date") || "";
@@ -259,6 +260,83 @@ export default function Transactions() {
     }
 
     // ✅ Create
+    useEffect(() => {
+
+        function handleKeyDown(e) {
+
+            const tag = e.target.tagName.toLowerCase();
+
+            // ❌ Ignore typing fields
+            if (tag === "input" || tag === "textarea") return;
+
+            // =========================
+            // E → Toggle Edit Mode
+            // =========================
+            if (e.key.toLowerCase() === "e" && !e.shiftKey) {
+                e.preventDefault();
+                setEditMode(prev => !prev);
+            }
+
+            // =========================
+            // Shift + E → Bulk Edit
+            // =========================
+            if (e.key.toLowerCase() === "e" && e.shiftKey) {
+
+                if (selectedTxIds.size === 0) {
+                    addToast("Select transactions first", "error");
+                    return;
+                }
+
+                e.preventDefault();
+
+                setActiveTx({
+                    bulk: true,
+                    category: "",
+                    subcategory: "",
+                    type: "",
+                    isBulk: true
+                });
+            }
+
+            // =========================
+            // Ctrl + A → Select All
+            // =========================
+            if (e.ctrlKey && e.key.toLowerCase() === "a") {
+                e.preventDefault();
+
+                const allIds = filteredTransactions.map(tx => tx.id);
+                selectAll(allIds);
+            }
+
+            // =========================
+            // Enter → Single Edit
+            // =========================
+            if (e.key === "Enter" && focusedTxId) {
+                e.preventDefault();
+
+                const tx = transactions.find(t => t.id === focusedTxId);
+                if (tx) {
+                    setActiveTx(tx);
+                }
+            }
+
+            // =========================
+            // Escape → Close / Clear
+            // =========================
+            if (e.key === "Escape") {
+                if (activeTx) {
+                    setActiveTx(null);
+                } else {
+                    clearSelection();
+                }
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+
+    }, [selectedTxIds, filteredTransactions, focusedTxId, activeTx]);
+
     async function handleCreateTransaction(tx) {
         try {
             if (!tx.amount || !tx.category || !tx.date) {
@@ -336,11 +414,12 @@ export default function Transactions() {
                         )
                     )
                 );
+                const {bulk, isBulk, ...updates} = activeTx;
 
                 setTransactions(prev =>
                     prev.map(tx =>
                         selectedTxIds.has(tx.id)
-                            ? {...tx, ...activeTx}
+                            ? {...tx, ...updates}
                             : tx
                     )
                 );
@@ -501,7 +580,42 @@ export default function Transactions() {
                     </div>
                 }
             />
+            {selectedTxIds.size > 0 && (
+                <div className="
+        flex items-center justify-between
+        px-4 py-2 mb-2
+        bg-blue-50 dark:bg-gray-800
+        border border-blue-200 dark:border-gray-700
+        rounded-md
+    ">
+        <span className="text-sm font-medium">
+            {selectedTxIds.size} selected
+        </span>
 
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => {
+                                setActiveTx({
+                                    bulk: true,
+                                    category: "",
+                                    subcategory: "",
+                                    type: ""
+                                });
+                            }}
+                            className="px-3 py-1 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-500"
+                        >
+                            Bulk Edit
+                        </button>
+
+                        <button
+                            onClick={clearSelection}
+                            className="px-3 py-1 text-sm rounded-md bg-gray-300 dark:bg-gray-700"
+                        >
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="flex-1 min-h-0 mt-4">
                 <TransactionsTable
                     collapsedGroups={collapsedGroups}
