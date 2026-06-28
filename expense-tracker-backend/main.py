@@ -140,6 +140,7 @@ def ingest_file(file_path, bank, upload_id=None):
         dt_ist = IST.localize(dt_naive)
         dt_utc = dt_ist.astimezone(pytz.utc)
 
+
         inserted = insert_transaction((
             dt_utc,
             float(r["amount"]),

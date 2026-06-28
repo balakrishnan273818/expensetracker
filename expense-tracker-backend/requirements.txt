@@ -1,2 +1,11 @@
 flask
+flask-cors
 gunicorn
+psycopg2-binary
+pandas
+openpyxl
+xlrd
+pytz
+tqdm
+requests
+werkzeug
