@@ -116,7 +116,7 @@ export default function TransactionRow({
 
                                 const value = e.target.value;
 
-                                await fetch(`http://localhost:5000/api/transactions/${tx.id}/remarks`, {
+                                await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/transactions/${tx.id}/remarks`, {
                                     method: "PATCH",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ remarks: value })
