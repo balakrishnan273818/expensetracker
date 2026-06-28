@@ -74,7 +74,7 @@ def fetch_transactions():
                 remarks
             FROM transactions
             ORDER BY date DESC
-            LIMIT 500
+            LIMIT 5000
         """)
 
         rows = cur.fetchall()
