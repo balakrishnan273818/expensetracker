@@ -12,6 +12,10 @@ venv/
 # OS files
 .DS_Store
 Thumbs.db
+DEPLOYMENT_GUIDE.md
+package.json
+package-lock.json
 
 # Uploads directory
 uploads/
+node_modules/
