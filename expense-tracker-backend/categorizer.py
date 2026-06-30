@@ -5,17 +5,17 @@ CATEGORY_RULES = {
     "ZOMATO": ("Food", "Delivery"),
     "LOAVES": ("Food", "Restaurant"),
 
-    "DMART": ("Living", "Groceries"),
-    "BIGBASKET": ("Living", "Groceries"),
+    "DMART": ("Groceries", "Others"),
+    "BIGBASKET": ("Groceries", "Others"),
 
-    "UBER": ("Travel", "Cab"),
-    "OLA": ("Travel", "Cab"),
+    "UBER": ("Travel", "Taxi"),
+    "OLA": ("Travel", "Taxi"),
 
-    "LIC": ("Financial", "Insurance"),
+    "LIC": ("Bills", "Others"),
     "ZERODHA": ("Investment", "Stocks"),
 
-    "PETROL": ("Travel", "Fuel"),
-    "FUEL": ("Travel", "Fuel")
+    "PETROL": ("Travel", "Others"),
+    "FUEL": ("Travel", "Others")
 }
 
 # Sort rules by merchant length (longer matches first)

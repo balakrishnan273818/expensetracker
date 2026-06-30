@@ -1,11 +1,11 @@
+import logging
+
 from db import DB_POOL
 from datetime import datetime
 import pytz
 
+logger = logging.getLogger(__name__)
 
-def to_utc(dt_naive):
-    IST = pytz.timezone("Asia/Kolkata")
-    return IST.localize(dt_naive).astimezone(pytz.utc)
 
 
 def learn_merchant_rule(txn_id):
@@ -54,7 +54,7 @@ def learn_merchant_rule(txn_id):
         DB_POOL.putconn(conn)
 
 
-def fetch_transactions():
+def fetch_transactions(limit=5000, offset=0):
 
     conn = DB_POOL.getconn()
 
@@ -74,8 +74,8 @@ def fetch_transactions():
                 remarks
             FROM transactions
             ORDER BY date DESC
-            LIMIT 5000
-        """)
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
 
         rows = cur.fetchall()
         cur.close()
@@ -108,6 +108,48 @@ def update_transaction_category(txn_id, category, sub_category, txn_type):
         DB_POOL.putconn(conn)
 
     learn_merchant_rule(txn_id)
+
+
+def batch_learn_merchant_rules(ids):
+    """Batch version of learn_merchant_rule: one SELECT + one executemany instead of N round trips."""
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT merchant, type, category, sub_category, amount
+            FROM transactions
+            WHERE id = ANY(%s)
+              AND merchant IS NOT NULL
+        """, (list(ids),))
+
+        rows = cur.fetchall()
+
+        if not rows:
+            cur.close()
+            return
+
+        cur.executemany("""
+            INSERT INTO merchant_rules
+            (merchant, type, category, sub_category, sample_amount)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (merchant)
+            DO UPDATE SET
+                type = EXCLUDED.type,
+                category = EXCLUDED.category,
+                sub_category = EXCLUDED.sub_category
+        """, [
+            (r[0].upper().strip(), r[1], r[2], r[3], r[4])
+            for r in rows
+        ])
+
+        conn.commit()
+        cur.close()
+
+    finally:
+        DB_POOL.putconn(conn)
 
 
 def bulk_update_transactions(ids, updates):
@@ -161,8 +203,7 @@ def bulk_update_transactions(ids, updates):
     finally:
         DB_POOL.putconn(conn)
 
-    for txn_id in ids:
-        learn_merchant_rule(txn_id)
+    batch_learn_merchant_rules(ids)
 
     return updated_count
 

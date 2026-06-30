@@ -1,4 +1,8 @@
+import logging
+
 from db import DB_POOL
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------
@@ -59,7 +63,7 @@ def learn_rule(merchant, tx_type, category, sub_category, amount=None):
             amount
         ))
 
-        print("RULE LEARNED:", merchant_key, tx_type, category, sub_category)
+        logger.info("Rule learned: merchant=%s type=%s category=%s sub=%s", merchant_key, tx_type, category, sub_category)
 
         conn.commit()
         cur.close()

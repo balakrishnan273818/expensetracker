@@ -1,4 +1,7 @@
 import os
+import re
+import uuid
+import logging
 import threading
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -6,6 +9,12 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import pandas as pd
 import pytz
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 from repositories.transaction_repo import (
     fetch_transactions,
@@ -26,6 +35,7 @@ CORS(app)
 # ==============================
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 def detect_bank(file_path, fallback_bank=None):
@@ -60,7 +70,7 @@ def process_upload(file_path, bank, upload_id):
         )
 
     except Exception as e:
-        print("Upload failed:", str(e))
+        logger.error("Upload failed for upload_id=%s: %s", upload_id, str(e))
 
         update_upload_status(
             upload_id,
@@ -90,14 +100,22 @@ def upload_file():
     if not filename.endswith((".xls", ".xlsx")):
         return {"error": "Invalid file format"}, 400
 
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(file_path)
+    # Read into memory first so we can check size before writing to disk
+    file_bytes = file.read()
+    file_size = len(file_bytes)
 
-    file_size = os.path.getsize(file_path)
+    if file_size > MAX_UPLOAD_SIZE:
+        return {"error": f"File too large (max {MAX_UPLOAD_SIZE // (1024 * 1024)} MB)"}, 413
+
+    # Prefix with UUID to avoid overwriting a concurrent upload of the same filename
+    unique_filename = f"{uuid.uuid4().hex}_{filename}"
+    file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+
+    with open(file_path, "wb") as f:
+        f.write(file_bytes)
 
     detected_bank = detect_bank(file_path, bank)
 
-    # ✅ Insert as processing FIRST
     upload_id = insert_upload_history(
         filename,
         detected_bank,
@@ -106,15 +124,15 @@ def upload_file():
         "processing"
     )
 
-    # ✅ Run background processing
-    threading.Thread(
+    t = threading.Thread(
         target=process_upload,
-        args=(file_path, detected_bank, upload_id)
-    ).start()
+        args=(file_path, detected_bank, upload_id),
+        daemon=True
+    )
+    t.start()
 
-    # ✅ IMPORTANT FIX: return upload_id
     return jsonify({
-        "id": upload_id,   # 🔥 critical fix
+        "id": upload_id,
         "file_name": filename,
         "bank": detected_bank,
         "uploaded_at": datetime.now(pytz.utc).isoformat(),
@@ -175,7 +193,13 @@ def home():
 
 @app.route("/api/transactions", methods=["GET"])
 def get_transactions():
-    rows = fetch_transactions()
+    try:
+        limit = int(request.args.get("limit", 5000))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return jsonify({"error": "limit and offset must be integers"}), 400
+
+    rows = fetch_transactions(limit=limit, offset=offset)
     transactions = []
 
     for row in rows:
@@ -251,7 +275,7 @@ def add_transaction():
         }), 201
 
     except Exception as e:
-        print("Add transaction failed:", str(e))
+        logger.error("Add transaction failed: %s", str(e))
         return jsonify({"error": "Failed to create transaction"}), 500
 
 
@@ -328,7 +352,7 @@ def delete_transaction(txn_id):
         return jsonify({"success": True})
 
     except Exception as e:
-        print("Delete failed:", str(e))
+        logger.error("Delete transaction %s failed: %s", txn_id, str(e))
         return jsonify({"error": "Failed to delete transaction"}), 500
 
 
@@ -342,6 +366,9 @@ def get_budgets():
 
     if not month:
         return jsonify({"error": "month is required"}), 400
+
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", month):
+        return jsonify({"error": "month must be in YYYY-MM format"}), 400
 
     month_date = f"{month}-01"
     rows = get_budgets_by_month(month_date)

@@ -1,8 +1,11 @@
 import os
+import logging
 import warnings
 import importlib
 from datetime import datetime
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 from engine_context import EngineContext
 from repositories.transaction_repo import insert_transaction
@@ -55,38 +58,6 @@ def normalize_date(date_str):
     raise ValueError(f"Unknown date format: {date_str}")
 
 
-def process_records(records, ctx):
-    for r in tqdm(records, colour="green"):
-
-        try:
-            normalized_date = normalize_date(r["date"])
-        except Exception:
-            print(f"Skipping invalid date: {r['date']}")
-            continue
-
-        merchant, tx_type, category, sub_category = categorize_transaction(
-            r["description"],
-            normalized_date,
-            ctx
-        )
-
-        dt_naive = datetime.strptime(normalized_date, "%Y-%m-%d")
-        dt_ist = IST.localize(dt_naive)
-        dt_utc = dt_ist.astimezone(pytz.utc)
-
-        insert_transaction((
-            dt_utc,
-            float(r["amount"]),
-            r["description"],
-            r["bank"],
-            derive_payment_method(r["description"]),
-            merchant,
-            tx_type,
-            category,
-            sub_category
-        ))
-
-
 # ==============================
 # CORE ENGINE
 # ==============================
@@ -120,7 +91,7 @@ def ingest_file(file_path, bank, upload_id=None):
         update_upload_progress(upload_id, 0, total_records)
         update_upload_status(upload_id, "processing", 0, total_records)
 
-    BATCH_SIZE = 5  # ✅ tune if needed
+    BATCH_SIZE = 25
 
     for r in records:
         processed_count += 1  # ✅ track ALL processed rows
@@ -128,6 +99,7 @@ def ingest_file(file_path, bank, upload_id=None):
         try:
             normalized_date = normalize_date(r["date"])
         except Exception:
+            logger.warning("Skipping record with invalid date: %s", r.get("date"))
             continue
 
         merchant, tx_type, category, sub_category = categorize_transaction(
@@ -167,17 +139,9 @@ def ingest_file(file_path, bank, upload_id=None):
                 total_records
             )
 
-    # ✅ final progress sync
+    # final progress sync — final status is set by the caller (process_upload)
     if upload_id:
         update_upload_progress(upload_id, processed_count)
-
-        # ✅ final status update (keep your existing logic intact)
-        update_upload_status(
-            upload_id,
-            "success",
-            inserted_count,
-            total_records
-        )
 
     return inserted_count
 

@@ -30,7 +30,6 @@ UPI_PATTERNS = [
 # -----------------------------
 
 INTERNAL_PATTERNS = [
-    "ADDMONEY",
     "IDFC FIRST",
     "IMPS P2P",
     "BALAKRISHNAN"

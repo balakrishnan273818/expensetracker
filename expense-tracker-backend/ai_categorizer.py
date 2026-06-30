@@ -1,10 +1,11 @@
+import logging
 import requests
 import re
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "gemma3:4b"
 
-DEBUG = False  # 🔥 toggle this ON/OFF
+logger = logging.getLogger(__name__)
 
 
 VALID_CATEGORIES = {
@@ -160,10 +161,7 @@ Merchant:
 {merchant}
 """
 
-    if DEBUG:
-        print("\n================ AI CATEGORIZATION DEBUG ================")
-        print(f"[INPUT] Description: {description}")
-        print(f"[INPUT] Merchant   : {merchant}")
+    logger.debug("AI categorize | description=%s | merchant=%s", description, merchant)
 
     try:
         response = requests.post(
@@ -177,13 +175,10 @@ Merchant:
         )
 
         result = response.json().get("response", "").strip()
-
-        if DEBUG:
-            print(f"[RAW RESPONSE]\n{result}")
+        logger.debug("AI raw response: %s", result)
 
     except Exception as e:
-        if DEBUG:
-            print(f"[ERROR] API call failed: {e}")
+        logger.warning("AI categorizer API call failed: %s", e)
         return "Others", "Others"
 
     # Parsing
@@ -194,30 +189,23 @@ Merchant:
     )
 
     if not match:
-        if DEBUG:
-            print("[PARSE ERROR] Could not extract category/subcategory")
+        logger.debug("AI parse error: could not extract category/subcategory from response")
         return "Others", "Others"
 
     main_category = match.group(1).strip().title()
     sub_category = match.group(2).strip()
 
-    if DEBUG:
-        print(f"[PARSED] Category: {main_category}")
-        print(f"[PARSED] Subcategory: {sub_category}")
+    logger.debug("AI parsed | category=%s | subcategory=%s", main_category, sub_category)
 
     # Validation
     if main_category not in VALID_CATEGORIES:
-        if DEBUG:
-            print(f"[VALIDATION FAIL] Invalid category: {main_category}")
+        logger.debug("AI validation fail: invalid category=%s", main_category)
         return "Others", "Others"
 
     if not sub_category:
-        if DEBUG:
-            print("[VALIDATION FAIL] Empty subcategory → defaulting to Others")
+        logger.debug("AI validation fail: empty subcategory, defaulting to Others")
         return main_category, "Others"
 
-    if DEBUG:
-        print(f"[FINAL] Category: {main_category}, Subcategory: {sub_category}")
-        print("=========================================================\n")
+    logger.debug("AI final | category=%s | subcategory=%s", main_category, sub_category)
 
     return main_category, sub_category
