@@ -1,8 +1,14 @@
 import re
+import logging
+
 from merchant_extractor import extract_merchant
 from categorizer import categorize
 from ai_categorizer import ai_categorize
+from rag_engine import get_embedding, build_rag_context
 from repositories.merchant_rule_repo import learn_rule
+from repositories.transaction_repo import find_similar_transactions
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_description(desc: str) -> str:
@@ -138,17 +144,39 @@ def categorize_transaction(description, txn_time, ctx):
         return merchant, tx_type, category, sub_category
 
     # ------------------------------------------------
-    # 7 AI FALLBACK
+    # 7 RAG RETRIEVAL — find similar past transactions
     # ------------------------------------------------
 
-    category, sub_category = ai_categorize(description, merchant)
+    rag_context = ""
+
+    embedding = get_embedding(description)
+
+    if embedding:
+        similar = find_similar_transactions(embedding)
+
+        if similar:
+            logger.debug(
+                "RAG found %d similar transactions for merchant=%s",
+                len(similar), merchant
+            )
+            rag_context = build_rag_context(similar)
+        else:
+            logger.debug("RAG: no similar transactions found for merchant=%s", merchant)
+    else:
+        logger.debug("RAG: embedding unavailable for merchant=%s, skipping retrieval", merchant)
+
+    # ------------------------------------------------
+    # 8 AI FALLBACK (with RAG context when available)
+    # ------------------------------------------------
+
+    category, sub_category = ai_categorize(description, merchant, rag_context=rag_context)
 
     tx_type = "expense"
 
     PERSON_PATTERN = re.compile(r"^[A-Z]+\s[A-Z]+$")
 
     # ------------------------------------------------
-    # 8 AUTO LEARN RULE
+    # 9 AUTO LEARN RULE
     # ------------------------------------------------
 
     if merchant and len(merchant) > 3:

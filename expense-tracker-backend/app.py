@@ -20,8 +20,11 @@ from repositories.transaction_repo import (
     fetch_transactions,
     update_transaction_category,
     bulk_update_transactions,
-    update_transaction_remarks
+    update_transaction_remarks,
+    store_embedding,
+    fetch_transactions_without_embeddings
 )
+from rag_engine import get_embedding
 from repositories.budget_repo import get_budgets_by_month, upsert_budgets
 from repositories.upload_repo import insert_upload_history, fetch_upload_history, update_upload_status
 
@@ -269,6 +272,12 @@ def add_transaction():
         from repositories.transaction_repo import create_transaction
         created_id = create_transaction(tx)
 
+        # Store embedding so this manual transaction enriches future RAG lookups
+        if tx.get("description"):
+            embedding = get_embedding(tx["description"])
+            if embedding:
+                store_embedding(created_id, embedding)
+
         return jsonify({
             "id": created_id,
             **tx
@@ -403,6 +412,43 @@ def save_budgets():
     upsert_budgets(month, budgets, monthly_income)
 
     return jsonify({"status": "success"})
+
+
+# ==============================
+# EMBEDDINGS
+# ==============================
+
+def _run_backfill():
+    """
+    Background worker: generate and store embeddings for all transactions
+    that don't have one yet. Runs in batches to avoid memory spikes.
+    """
+    total = 0
+
+    while True:
+        rows = fetch_transactions_without_embeddings(batch_size=50)
+
+        if not rows:
+            break
+
+        for txn_id, description in rows:
+            embedding = get_embedding(description)
+            if embedding:
+                store_embedding(txn_id, embedding)
+                total += 1
+
+    logger.info("Embedding backfill complete: %d transactions embedded", total)
+
+
+@app.route("/api/embeddings/backfill", methods=["POST"])
+def backfill_embeddings():
+    """
+    Trigger background embedding generation for all transactions
+    that don't have a vector yet. Safe to call multiple times.
+    """
+    t = threading.Thread(target=_run_backfill, daemon=True)
+    t.start()
+    return jsonify({"status": "backfill started"})
 
 
 # ==============================

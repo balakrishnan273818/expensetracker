@@ -228,11 +228,102 @@ def insert_transaction(record):
         conn.commit()
         cur.close()
 
-        return result is not None
+        # Return the new row's ID, or None if the row was a duplicate (ON CONFLICT DO NOTHING)
+        return result[0] if result else None
 
     except Exception:
         conn.rollback()
         raise
+
+    finally:
+        DB_POOL.putconn(conn)
+
+
+def store_embedding(txn_id: int, embedding: list):
+    """Persist a vector embedding for a transaction."""
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE transactions
+            SET embedding = %s::vector
+            WHERE id = %s
+        """, (str(embedding), txn_id))
+
+        conn.commit()
+        cur.close()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        DB_POOL.putconn(conn)
+
+
+def find_similar_transactions(embedding: list, limit: int = 5, min_similarity: float = 0.65):
+    """
+    Retrieve past transactions whose embedding is closest to the given vector.
+    Uses cosine similarity via pgvector's <=> operator.
+    Returns list of (description, category, sub_category, similarity).
+    Only returns rows where similarity >= min_similarity.
+    """
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                description,
+                category,
+                sub_category,
+                1 - (embedding <=> %s::vector) AS similarity
+            FROM transactions
+            WHERE embedding IS NOT NULL
+              AND category IS NOT NULL
+              AND category != 'Others'
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
+        """, (str(embedding), str(embedding), limit))
+
+        rows = cur.fetchall()
+        cur.close()
+
+        return [
+            (desc, cat, sub, float(sim))
+            for desc, cat, sub, sim in rows
+            if float(sim) >= min_similarity
+        ]
+
+    finally:
+        DB_POOL.putconn(conn)
+
+
+def fetch_transactions_without_embeddings(batch_size: int = 100):
+    """Fetch transactions that have no embedding yet, for backfill."""
+
+    conn = DB_POOL.getconn()
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT id, description
+            FROM transactions
+            WHERE embedding IS NULL
+            ORDER BY id
+            LIMIT %s
+        """, (batch_size,))
+
+        rows = cur.fetchall()
+        cur.close()
+
+        return rows
 
     finally:
         DB_POOL.putconn(conn)

@@ -8,7 +8,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 from engine_context import EngineContext
-from repositories.transaction_repo import insert_transaction
+from repositories.transaction_repo import insert_transaction, store_embedding
 from repositories.merchant_rule_repo import (
     load_rules,
     load_merchant_patterns,
@@ -20,6 +20,7 @@ from services.categorization_service import (
     categorize_transaction,
     derive_payment_method
 )
+from rag_engine import get_embedding
 
 import pytz
 
@@ -113,7 +114,7 @@ def ingest_file(file_path, bank, upload_id=None):
         dt_utc = dt_ist.astimezone(pytz.utc)
 
 
-        inserted = insert_transaction((
+        txn_id = insert_transaction((
             dt_utc,
             float(r["amount"]),
             r["description"],
@@ -125,8 +126,13 @@ def ingest_file(file_path, bank, upload_id=None):
             sub_category
         ))
 
-        if inserted:
+        if txn_id:
             inserted_count += 1
+
+            # Store embedding so this transaction can be retrieved by future RAG lookups
+            embedding = get_embedding(r["description"])
+            if embedding:
+                store_embedding(txn_id, embedding)
 
         # ✅ REAL progress update (based on processed_count, NOT inserted_count)
         if upload_id and processed_count % BATCH_SIZE == 0:

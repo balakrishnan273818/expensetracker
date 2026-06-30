@@ -9,3 +9,14 @@ pytz==2024.1
 tqdm==4.66.4
 requests==2.32.3
 werkzeug==3.0.3
+# pgvector Python client — registers the vector type with psycopg2
+pgvector==0.3.2
+
+# ── Required environment variables on Render ──────────────────────────────────
+# DATABASE_URL   — Neon PostgreSQL connection string
+# HF_API_KEY     — Hugging Face token (free at huggingface.co/settings/tokens)
+#                  Used for 384-dim sentence embeddings (all-MiniLM-L6-v2)
+# GROQ_API_KEY   — Groq token (free at console.groq.com)
+#                  Used for LLM classification (llama-3.1-8b-instant)
+#
+# Local dev: omit both keys and run `ollama pull all-minilm` + `ollama pull gemma3:4b`

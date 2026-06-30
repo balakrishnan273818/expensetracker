@@ -1,12 +1,18 @@
+import os
 import logging
 import requests
 import re
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "gemma3:4b"
-
 logger = logging.getLogger(__name__)
 
+# ── Cloud provider (used on Render when GROQ_API_KEY env var is set) ──────────
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.1-8b-instant"
+
+# ── Local fallback (used when GROQ_API_KEY is absent — local dev with Ollama) ─
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "gemma3:4b"
 
 VALID_CATEGORIES = {
     "Food", "Allowances", "Groceries", "Shopping", "Travel",
@@ -15,10 +21,8 @@ VALID_CATEGORIES = {
 }
 
 
-def ai_categorize(description, merchant):
-
-    prompt = f"""
-You are a financial transaction classification engine.
+def _build_prompt(description: str, merchant: str, rag_section: str) -> str:
+    return f"""You are a financial transaction classification engine.
 
 Your task is to classify each transaction into EXACTLY ONE:
 - Category
@@ -153,6 +157,7 @@ Output: Category: Others, Subcategory: Charity
 Transaction: "MONTHLY SAVINGS INTEREST CREDIT"
 Output: Category: Income, Subcategory: Bank Interest
 ---
+{rag_section}
 Now classify:
 Transaction Description:
 {description}
@@ -161,27 +166,40 @@ Merchant:
 {merchant}
 """
 
-    logger.debug("AI categorize | description=%s | merchant=%s", description, merchant)
 
-    try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": MODEL_NAME,
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=30
-        )
+def _call_groq(prompt: str) -> str:
+    """Call Groq chat completions API and return the raw text response."""
+    response = requests.post(
+        GROQ_API_URL,
+        headers={
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": GROQ_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+            "max_tokens": 50
+        },
+        timeout=30
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
 
-        result = response.json().get("response", "").strip()
-        logger.debug("AI raw response: %s", result)
 
-    except Exception as e:
-        logger.warning("AI categorizer API call failed: %s", e)
-        return "Others", "Others"
+def _call_ollama(prompt: str) -> str:
+    """Call local Ollama generate API and return the raw text response."""
+    response = requests.post(
+        OLLAMA_URL,
+        json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+        timeout=30
+    )
+    response.raise_for_status()
+    return response.json().get("response", "").strip()
 
-    # Parsing
+
+def _parse_response(result: str):
+    """Parse 'Category: X, Subcategory: Y' from model output."""
     match = re.search(
         r"Category:\s*([^,]+),\s*Subcategory:\s*([^\n\r]+)",
         result,
@@ -189,23 +207,47 @@ Merchant:
     )
 
     if not match:
-        logger.debug("AI parse error: could not extract category/subcategory from response")
+        logger.debug("AI parse error: could not extract from response: %s", result[:100])
         return "Others", "Others"
 
     main_category = match.group(1).strip().title()
     sub_category = match.group(2).strip()
 
-    logger.debug("AI parsed | category=%s | subcategory=%s", main_category, sub_category)
-
-    # Validation
     if main_category not in VALID_CATEGORIES:
         logger.debug("AI validation fail: invalid category=%s", main_category)
         return "Others", "Others"
 
     if not sub_category:
-        logger.debug("AI validation fail: empty subcategory, defaulting to Others")
         return main_category, "Others"
 
-    logger.debug("AI final | category=%s | subcategory=%s", main_category, sub_category)
-
     return main_category, sub_category
+
+
+def ai_categorize(description: str, merchant: str, rag_context: str = ""):
+    """
+    Classify a transaction using an LLM.
+
+    Routing:
+      - GROQ_API_KEY set  →  Groq (llama-3.1-8b-instant)  (Render / cloud)
+      - GROQ_API_KEY absent →  local Ollama (gemma3:4b)    (development)
+
+    rag_context: optional few-shot block from similar past transactions.
+    Falls back to ("Others", "Others") on any API failure.
+    """
+    rag_section = (rag_context + "\n---\n") if rag_context else ""
+    prompt = _build_prompt(description, merchant, rag_section)
+
+    provider = "groq" if GROQ_API_KEY else "ollama"
+    logger.debug(
+        "AI categorize via %s | description=%s | merchant=%s | has_rag=%s",
+        provider, description[:60], merchant, bool(rag_context)
+    )
+
+    try:
+        result = _call_groq(prompt) if GROQ_API_KEY else _call_ollama(prompt)
+        logger.debug("AI raw response: %s", result[:120])
+    except Exception as e:
+        logger.warning("AI categorizer (%s) failed: %s", provider, e)
+        return "Others", "Others"
+
+    return _parse_response(result)
